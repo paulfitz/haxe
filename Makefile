@@ -34,7 +34,7 @@ EXPORT=../../../projects/motionTools/haxe
 
 MODULES=ast type lexer common genxml parser typecore optimizer typeload \
 codegen gencommon genas3 gencpp genjs genneko genphp genswf8 \
-	genswf9 genswf genjava gencs interp dce filters typer matcher version main
+	genswf9 genswf genjava gencs genruby interp dce filters typer matcher version main
 
 ADD_REVISION=0
 
