@@ -55,6 +55,7 @@ type platform =
 	| Java
 	| Python
 	| Hl
+	| Ruby
 
 (**
 	The capture policy tells which handling we make of captured locals
@@ -971,6 +972,21 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_can_skip_non_nullable_argument = false;
+		}
+	| Ruby ->
+		{
+			pf_static = false;
+			pf_sys = false;
+			pf_locals_scope = false;
+			pf_captured_scope = false;
+			pf_unique_locals = false;
+			pf_capture_policy = CPLoopVars;
+			pf_pad_nulls = false;
+			pf_add_final_return = false;
+			pf_overload = false;
+			pf_pattern_matching = false;
+			pf_can_skip_non_nullable_argument = true;
+			pf_ignore_unsafe_cast = true;
 		}
 
 let memory_marker = [|Unix.time()|]

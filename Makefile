@@ -59,7 +59,7 @@ MODULES=json version globals path syntax/ast display/displayTypes typing/type ty
 	optimization/optimizer typing/overloads typing/typeload generators/codegen generators/gencommon generators/genas3 \
 	generators/gencpp generators/genjs generators/genneko generators/genphp generators/genswf9 \
 	generators/genswf generators/genjava generators/gencs generators/genpy macro/interp generators/hlcode generators/hlopt generators/hlinterp generators/hl2c generators/genhl \
-	generators/genlua \
+	generators/genlua generators/genrb \
 	optimization/dce optimization/analyzerConfig optimization/analyzerTypes optimization/analyzerTexpr \
 	optimization/analyzerTexprTransformer optimization/analyzer \
 	optimization/filters typing/typer typing/matcher display/displayOutput server main
