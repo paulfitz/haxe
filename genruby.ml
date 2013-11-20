@@ -501,12 +501,9 @@ and gen_expr ctx e =
 		if not ctx.in_loop then unsupported e.epos;
 		spr ctx "continue"
 	| TBlock el ->
-		print ctx "{";
 		let bend = open_block ctx in
 		List.iter (gen_block ctx) el;
 		bend();
-		newline ctx;
-		print ctx "}";
 	| TFunction f ->
 		let old = ctx.in_value, ctx.in_loop in
 		ctx.in_value <- None;
@@ -914,10 +911,16 @@ let gen_class_field ctx c f =
 	    print ctx "end";
 	| Some { eexpr = TFunction fd } ->
 	    newline ctx;
+	    let old = ctx.in_value, ctx.in_loop in
+	    ctx.in_value <- None;
+	    ctx.in_loop <- false;
 	    print ctx "def %s" (anon_field f.cf_name);
+	    if (List.length fd.tf_args)>0 then print ctx "(%s)" (String.concat "," (List.map ident (List.map arg_name fd.tf_args)));
 	    let bend = open_block ctx in
-	    newline ctx;
-	    print ctx "thing";
+	    gen_expr ctx fd.tf_expr;
+	    ctx.in_value <- fst old;
+	    ctx.in_loop <- snd old;
+	    ctx.separator <- true;
 	    bend();
 	    newline ctx;
 	    print ctx "end";
