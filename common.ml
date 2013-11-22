@@ -740,7 +740,7 @@ let platform_name = function
 	| Cpp -> "cpp"
 	| Cs -> "cs"
 	| Java -> "java"
-	| Ruby -> "ruby"
+	| Ruby -> "rb"
 
 let flash_versions = List.map (fun v ->
 	let maj = int_of_float v in
