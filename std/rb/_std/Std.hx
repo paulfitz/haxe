@@ -19,13 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-import ruby.Boot;
+import rb.Boot;
 
 @:keepInit
 @:coreApi class Std {
 
 	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {
-		return untyped ruby.Boot.__instanceof(v,t);
+		return untyped rb.Boot.__instanceof(v,t);
 	}
 	
 	public static inline function instance<T>( v : { }, c : Class<T> ) : T {
@@ -33,7 +33,7 @@ import ruby.Boot;
 	}
 
 	public static function string( s : Dynamic ) : String {
-		return untyped ruby.Boot.__string_rec(s,"");
+		return untyped rb.Boot.__string_rec(s,"");
 	}
 
 	public static inline function int( x : Float ) : Int {
@@ -59,13 +59,13 @@ import ruby.Boot;
 	}
 
 	static function __init__() : Void untyped {
-		__feature__("ruby.Boot.getClass",String.prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["String"] = String,String));
-		__feature__("ruby.Boot.isClass",String.__name__ = __feature__("Type.getClassName",["String"],true));
-		__feature__("ruby.Boot.getClass",Array.prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["Array"] = Array,Array));
-		__feature__("ruby.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",["Array"],true));
+		__feature__("rb.Boot.getClass",String.prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["String"] = String,String));
+		__feature__("rb.Boot.isClass",String.__name__ = __feature__("Type.getClassName",["String"],true));
+		__feature__("rb.Boot.getClass",Array.prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["Array"] = Array,Array));
+		__feature__("rb.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",["Array"],true));
 		__feature__("Date.*", {
-			__feature__("ruby.Boot.getClass",__js__('Date').prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["Date"] = __js__('Date'),__js__('Date')));
-			__feature__("ruby.Boot.isClass",__js__('Date').__name__ = ["Date"]);
+			__feature__("rb.Boot.getClass",__js__('Date').prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["Date"] = __js__('Date'),__js__('Date')));
+			__feature__("rb.Boot.isClass",__js__('Date').__name__ = ["Date"]);
 		});
 		__feature__("Int.*",{
 			var Int = __feature__("Type.resolveClass", $hxClasses["Int"] = { __name__ : ["Int"] }, { __name__ : ["Int"] });
