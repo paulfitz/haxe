@@ -19,26 +19,45 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package ruby;
+package rb;
 
-class Lib {
+/**
+	By compiling the [haxe.remoting.SocketWrapper] into a SWF, you can create and use XMLSockets directly from Javascript.
+**/
+class XMLSocket {
 
-	/**
-		Inserts a 'debugger' statement that will make a breakpoint if a debugger is available.
-	**/
-	public static inline function debug() {
-		untyped __js__("debugger");
+	var cnx : haxe.remoting.ExternalConnection;
+
+	public function new( flashObject : String ) {
+		var ctx = new haxe.remoting.Context();
+		var cnx = haxe.remoting.ExternalConnection.flashConnect("SocketWrapper",flashObject,ctx);
+		var sockId = cnx.api.create.call([flashObject]);
+		cnx.close();
+		ctx.addObject("api",this,false);
+		this.cnx = haxe.remoting.ExternalConnection.flashConnect(sockId,flashObject,ctx);
 	}
 
-	/**
-		Display an alert message box containing the given message
-	**/
-	public static function alert( v : Dynamic ) {
-		untyped __js__("alert")(ruby.Boot.__string_rec(v,""));
+	public function connect( host : String, port : Int ) {
+		cnx.sock.connect.call([host,port]);
 	}
 
-	public static inline function eval( code : String ) : Dynamic {
-		return untyped __js__("eval")(code);
+	public function send( data : String ) {
+		cnx.sock.send.call([data]);
+	}
+
+	public function close() {
+		cnx.sock.close.call([]);
+		cnx.api.destroy.call([]);
+		cnx.close();
+	}
+
+	public dynamic function onData( data : String ) {
+	}
+
+	public dynamic function onClose() {
+	}
+
+	public dynamic function onConnect( b : Bool ) {
 	}
 
 }

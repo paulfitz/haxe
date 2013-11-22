@@ -19,50 +19,26 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package ruby;
+package rb;
 
-@:native("Error")
-extern class Error
-{
-	var message : String;
-	var name : String;
-	var stack(default,null) : String;
+class Lib {
 
-	function new(?message : String) : Void;
-}
+	/**
+		Inserts a 'debugger' statement that will make a breakpoint if a debugger is available.
+	**/
+	public static inline function debug() {
+		untyped __js__("debugger");
+	}
 
-@:native("EvalError")
-extern class EvalError extends Error
-{
-	function new(?message : String) : Void;
-}
+	/**
+		Display an alert message box containing the given message
+	**/
+	public static function alert( v : Dynamic ) {
+		untyped __js__("alert")(rb.Boot.__string_rec(v,""));
+	}
 
-@:native("RangeError")
-extern class RangeError extends Error
-{
-	function new(?message : String) : Void;
-}
+	public static inline function eval( code : String ) : Dynamic {
+		return untyped __js__("eval")(code);
+	}
 
-@:native("ReferenceError")
-extern class ReferenceError extends Error
-{
-	function new(?message : String) : Void;
-}
-
-@:native("SyntaxError")
-extern class SyntaxError extends Error
-{
-	function new(?message : String) : Void;
-}
-
-@:native("TypeError")
-extern class TypeError extends Error
-{
-	function new(?message : String) : Void;
-}
-
-@:native("URIError")
-extern class URIError extends Error
-{
-	function new(?message : String) : Void;
 }

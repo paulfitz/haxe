@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package ruby;
+package rb;
 
 class Boot {
 
@@ -60,15 +60,15 @@ class Boot {
 	}
 
 	static inline function isClass(o:Dynamic) : Bool {
-		return untyped __define_feature__("ruby.Boot.isClass", o.__name__);
+		return untyped __define_feature__("rb.Boot.isClass", o.__name__);
 	}
 
 	static inline function isEnum(e:Dynamic) : Bool {
-		return untyped __define_feature__("ruby.Boot.isEnum", e.__ename__);
+		return untyped __define_feature__("rb.Boot.isEnum", e.__ename__);
 	}
 
 	static inline function getClass(o:Dynamic) : Dynamic {
-		return untyped __define_feature__("ruby.Boot.getClass", o.__class__);
+		return untyped __define_feature__("rb.Boot.getClass", o.__class__);
 	}
 
 	@:ifFeature("has_enum")

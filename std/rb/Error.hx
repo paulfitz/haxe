@@ -19,45 +19,50 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package ruby;
+package rb;
 
-/**
-	By compiling the [haxe.remoting.SocketWrapper] into a SWF, you can create and use XMLSockets directly from Javascript.
-**/
-class XMLSocket {
+@:native("Error")
+extern class Error
+{
+	var message : String;
+	var name : String;
+	var stack(default,null) : String;
 
-	var cnx : haxe.remoting.ExternalConnection;
+	function new(?message : String) : Void;
+}
 
-	public function new( flashObject : String ) {
-		var ctx = new haxe.remoting.Context();
-		var cnx = haxe.remoting.ExternalConnection.flashConnect("SocketWrapper",flashObject,ctx);
-		var sockId = cnx.api.create.call([flashObject]);
-		cnx.close();
-		ctx.addObject("api",this,false);
-		this.cnx = haxe.remoting.ExternalConnection.flashConnect(sockId,flashObject,ctx);
-	}
+@:native("EvalError")
+extern class EvalError extends Error
+{
+	function new(?message : String) : Void;
+}
 
-	public function connect( host : String, port : Int ) {
-		cnx.sock.connect.call([host,port]);
-	}
+@:native("RangeError")
+extern class RangeError extends Error
+{
+	function new(?message : String) : Void;
+}
 
-	public function send( data : String ) {
-		cnx.sock.send.call([data]);
-	}
+@:native("ReferenceError")
+extern class ReferenceError extends Error
+{
+	function new(?message : String) : Void;
+}
 
-	public function close() {
-		cnx.sock.close.call([]);
-		cnx.api.destroy.call([]);
-		cnx.close();
-	}
+@:native("SyntaxError")
+extern class SyntaxError extends Error
+{
+	function new(?message : String) : Void;
+}
 
-	public dynamic function onData( data : String ) {
-	}
+@:native("TypeError")
+extern class TypeError extends Error
+{
+	function new(?message : String) : Void;
+}
 
-	public dynamic function onClose() {
-	}
-
-	public dynamic function onConnect( b : Bool ) {
-	}
-
+@:native("URIError")
+extern class URIError extends Error
+{
+	function new(?message : String) : Void;
 }

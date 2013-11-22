@@ -88,7 +88,7 @@ let error ctx msg p =
 	ctx.has_error <- true
 
 let reserved_flags = [
-	"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";"ruby";
+	"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";"rb";
 	"as3";"swc";"macro";"sys"
 	]
 
@@ -535,7 +535,7 @@ try
 		("-hl",Arg.String (fun file ->
 			Initialize.set_platform com Hl file;
 		),"<file> : compile HL code as target file");
-		("-ruby",Arg.String (fun dir ->
+		("-rb",Arg.String (fun dir ->
 			set_platform Ruby dir;
 		),"<directory> : generate Ruby code into target directory");
 		("-xml",Arg.String (fun file ->
