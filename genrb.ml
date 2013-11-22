@@ -644,7 +644,7 @@ and gen_expr ctx e =
 				end
 			| Some t ->
 				if not !else_block then newline ctx;
-				print ctx "if( %s.__instanceof(%s," (ctx.type_accessor (TClassDecl { null_class with cl_path = ["ruby"],"Boot" })) vname;
+				print ctx "if( %s.__instanceof(%s," (ctx.type_accessor (TClassDecl { null_class with cl_path = ["rb"],"Boot" })) vname;
 				gen_value ctx (mk (TTypeExpr t) (mk_mono()) e.epos);
 				spr ctx ") ) {";
 				let bend = open_block ctx in
@@ -700,7 +700,7 @@ and gen_expr ctx e =
 	| TCast (e,None) ->
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
-		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["ruby"],"Boot" }));
+		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["rb"],"Boot" }));
 		gen_expr ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
@@ -779,7 +779,7 @@ and gen_value ctx e =
 	| TCast (e1, None) ->
 		gen_value ctx e1
 	| TCast (e1, Some t) ->
-		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["ruby"],"Boot" }));
+		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["rb"],"Boot" }));
 		gen_value ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
@@ -932,7 +932,7 @@ let gen_class_field ctx c f =
 		ctx.separator <- false
 
 let generate_class___name__ ctx c =
-	if has_feature ctx "ruby.Boot.isClass" then begin
+	if has_feature ctx "rb.Boot.isClass" then begin
 		let p = s_path ctx c.cl_path in
 		print ctx "%s.__name__ = " p;
 		if has_feature ctx "Type.getClassName" then
@@ -990,7 +990,7 @@ let generate_class ctx c =
 
 	List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
 
-	let has_class = has_feature ctx "ruby.Boot.getClass" && (c.cl_super <> None || c.cl_ordered_fields <> [] || c.cl_constructor <> None) in
+	let has_class = has_feature ctx "rb.Boot.getClass" && (c.cl_super <> None || c.cl_ordered_fields <> [] || c.cl_constructor <> None) in
 	let has_prototype = c.cl_super <> None || has_class || List.exists (can_gen_class_field ctx) c.cl_ordered_fields in
 	if has_prototype then begin
 		(match c.cl_super with
@@ -1040,7 +1040,7 @@ let generate_enum ctx e =
 	print ctx "%s = " p;
 	if has_feature ctx "Type.resolveEnum" then print ctx "$hxClasses[\"%s\"] = " (dot_path e.e_path);
 	print ctx "{";
-	if has_feature ctx "ruby.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "[" ^ String.concat "," ename ^ "]" else "true");
+	if has_feature ctx "rb.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "[" ^ String.concat "," ename ^ "]" else "true");
 	print ctx " __constructs__ : [%s] }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
 	ctx.separator <- true;
 	newline ctx;
@@ -1141,8 +1141,8 @@ let generate com =
 	| None ->
 	let ctx = alloc_ctx com in
 
-	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "ruby.Boot.isClass";
-	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "ruby.Boot.isEnum";
+	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "rb.Boot.isClass";
+	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "rb.Boot.isEnum";
 
 	let exposed = List.concat (List.map (fun t ->
 		match t with
@@ -1209,7 +1209,7 @@ let generate com =
 	let vars = [] in
 	let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("$hxClasses = " ^ (if ctx.js_modern then "{}" else "$hxClasses || {}")) :: vars else vars) in
 	let vars = (if List.exists (function TEnumDecl { e_extern = false } -> true | _ -> false) com.types
-		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["ruby"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
+		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["rb"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
 		else vars) in
 	(match List.rev vars with
 	| [] -> ()
