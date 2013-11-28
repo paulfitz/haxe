@@ -33,7 +33,7 @@ import rb.Boot;
 	}
 
 	public static function string( s : Dynamic ) : String {
-		return untyped rb.Boot.__string_rec(s,"");
+	  return untyped __js__("s.to_s");
 	}
 
 	public static inline function int( x : Float ) : Int {
@@ -41,17 +41,11 @@ import rb.Boot;
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {
-		var v = untyped __js__("parseInt")(x, 10);
-		// parse again if hexadecimal
-		if( v == 0 && (x.charCodeAt(1) == 'x'.code || x.charCodeAt(1) == 'X'.code) )
-			v = untyped __js__("parseInt")(x);
-		if( untyped __js__("isNaN")(v) )
-			return null;
-		return cast v;
+	  return untyped __js__("x.to_i");
 	}
 
 	public static function parseFloat( x : String ) : Float {
-		return untyped __js__("parseFloat")(x);
+	  return untyped __js__("x.to_f");
 	}
 
 	public static function random( x : Int ) : Int {
