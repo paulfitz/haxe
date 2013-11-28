@@ -38,36 +38,27 @@ package haxe.ds;
 	}
 
 	public function exists( key : Int ) : Bool {
-		return untyped h.hasOwnProperty(key);
+	  return untyped __js__("@h.include? key");
 	}
 
 	public function remove( key : Int ) : Bool {
-		if( untyped !h.hasOwnProperty(key) ) return false;
-		untyped  __js__("delete")(h[key]);
-		return true;
+	  if (!exists(key)) return false;
+	  untyped __js__("@h.delete(key)");
+	  return true;
 	}
 
 	public function keys() : Iterator<Int> {
-		var a = [];
-		untyped {
-			__js__("for( var key in this.h ) {");
-				if( h.hasOwnProperty(key) )
-					a.push(key|0);
-			__js__("}");
-		}
-		return a.iterator();
+	  return new rb.RubyIterator(untyped __js__("@h.keys"),null);
 	}
 
+
 	public function iterator() : Iterator<T> {
-		return untyped {
-			ref : h,
-			it : keys(),
-			hasNext : function() { return __this__.it.hasNext(); },
-			next : function() { var i = __this__.it.next(); return __this__.ref[i]; }
-		};
+	  return new rb.RubyIterator(untyped __js__("@h.keys"),untyped __js__("@h"));
 	}
 
 	public function toString() : String {
+	  return "not implemented yet";
+	  /*
 		var s = new StringBuf();
 		s.add("{");
 		var it = keys();
@@ -80,6 +71,7 @@ package haxe.ds;
 		}
 		s.add("}");
 		return s.toString();
+		*/
 	}
 
 }

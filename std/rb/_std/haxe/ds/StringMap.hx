@@ -30,57 +30,33 @@ package haxe.ds;
 	}
 
 	public function set( key : String, value : T ) : Void {
-		untyped h["$"+key] = value;
+		untyped h[key] = value;
 	}
 
 	public function get( key : String ) : Null<T> {
-		return untyped h["$"+key];
+		return untyped h[key];
 	}
 
 	public function exists( key : String ) : Bool {
-		return untyped h.hasOwnProperty("$"+key);
+	  return untyped __js__("@h.include? key");
 	}
 
 	public function remove( key : String ) : Bool {
-		key = "$"+key;
-		if( untyped !h.hasOwnProperty(key) ) return false;
-		untyped __js__("delete")(h[key]);
-		return true;
+	  if (!exists(key)) return false;
+	  untyped __js__("@h.delete(key)");
+	  return true;
 	}
 
 	public function keys() : Iterator<String> {
-		var a = [];
-		untyped {
-			__js__("for( var key in this.h ) {");
-				if( h.hasOwnProperty(key) )
-					a.push(key.substr(1));
-			__js__("}");
-		}
-		return a.iterator();
+	  return new rb.RubyIterator(untyped __js__("@h.keys"),null);
 	}
 
 	public function iterator() : Iterator<T> {
-		return untyped {
-			ref : h,
-			it : keys(),
-			hasNext : function() { return __this__.it.hasNext(); },
-			next : function() { var i = __this__.it.next(); return __this__.ref["$"+i]; }
-		};
+	  return new rb.RubyIterator(untyped __js__("@h.keys"),untyped __js__("@h"));
 	}
 
 	public function toString() : String {
-		var s = new StringBuf();
-		s.add("{");
-		var it = keys();
-		for( i in it ) {
-			s.add(i);
-			s.add(" => ");
-			s.add(Std.string(get(i)));
-			if( it.hasNext() )
-				s.add(", ");
-		}
-		s.add("}");
-		return s.toString();
+	  return "not implemented yet";
 	}
 
 }
