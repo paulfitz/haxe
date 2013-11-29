@@ -25,12 +25,14 @@
 	function new(string:String) : Void;
 	function toUpperCase() : String;
 	function toLowerCase() : String;
-	function charAt( index : Int) : String;
+  inline function charAt( index : Int) : String {
+    return untyped __get__(this,index);
+  }
   inline function indexOf( str : String, ?startIndex : Int ) : Int {
     return untyped __dotcall__(this,"index",str,startIndex||0)||-1;
   }
 	function lastIndexOf( str : String, ?startIndex : Int ) : Int;
-	function split( delimiter : String ) : Array<String>;
+  function split( delimiter : String ) : Array<String>;
 	function toString() : String;
 	function substring( startIndex : Int, ?endIndex : Int ) : String;
 
