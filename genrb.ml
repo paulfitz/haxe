@@ -133,14 +133,28 @@ let reserved =
 
 	(* "each", "label" : removed (actually allowed in locals and fields accesses) *)
 
-let s_ident n =
+let s_ident m =
+  let n = camel_to_underscore m in
   let ch = (String.get n 0) in
   if ch >= 'A' && ch <= 'Z' then
     "_" ^ n
-  else if n = "toString" then
+  else if n = "to_string" then
     "to_s"
   else
     if Hashtbl.mem reserved n then "_" ^ n else n
+
+
+let rec is_string_type t =
+	match follow t with
+	| TInst ({cl_path = ([], "String")}, _) -> true
+	| TAnon a ->
+	   (match !(a.a_status) with
+	   | Statics ({cl_path = ([], "String")}) -> true
+	   | _ -> false)
+	| TAbstract (a,pl) -> is_string_type (Codegen.Abstract.get_underlying_type a pl)
+	| _ -> false
+
+let is_string_expr e = is_string_type e.etype
 
 let rec create_dir acc = function
 	| [] -> ()
@@ -325,7 +339,7 @@ let handle_break ctx e =
 				spr ctx "} catch( e : * ) { if( e != \"__break__\" ) throw e; }";
 			)
 
-let this ctx = if ctx.in_value <> None then "$this" else "self"
+let this ctx = if ctx.in_value <> None then "_this_" else "self"
 
 let generate_resources infos =
 	if Hashtbl.length infos.com.resources <> 0 then begin
@@ -516,6 +530,17 @@ let rec gen_call ctx e el r =
 		gen_value ctx f;
 		spr ctx "]";
 		spr ctx ")";
+	| TLocal { v_name = "__set__" }, [e;k;v] ->
+		gen_value ctx e;
+		spr ctx "[";
+		gen_value ctx k;
+		spr ctx "] = ";
+		gen_value ctx v;
+	| TLocal { v_name = "__get__" }, [e;k] ->
+		gen_value ctx e;
+		spr ctx "[";
+		gen_value ctx k;
+		spr ctx "]";
 	| TLocal { v_name = "__unprotect__" }, [e] ->
 		gen_value ctx e
 	| TLocal { v_name = "__vector__" }, [e] ->
@@ -613,6 +638,12 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ctx e =
 	| TBinop (Ast.OpEq,e1,e2) when (match is_special_compare e1 e2 with Some c -> true | None -> false) ->
 		let c = match is_special_compare e1 e2 with Some c -> c | None -> assert false in
 		gen_expr ctx (mk (TCall (mk (TField (mk (TTypeExpr (TClassDecl c)) t_dynamic e.epos,FDynamic "compare")) t_dynamic e.epos,[e1;e2])) ctx.inf.com.basic.tbool e.epos);
+	| TBinop (Ast.OpAdd,e1,e2) when (is_string_expr e1 || is_string_expr e2) ->
+	    gen_value_op ctx e1;
+	    if not(is_string_expr e1) then spr ctx ".to_s";
+	    spr ctx " + ";
+	    gen_value_op ctx e2;
+	    if not(is_string_expr e2) then spr ctx ".to_s";
 	(* what is this used for? *)
 (* 	| TBinop (op,{ eexpr = TField (e1,s) },e2) ->
 		gen_value_op ctx e1;
@@ -743,10 +774,13 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ctx e =
 				) vl;
 	| TNew (c,params,el) ->
 		(match c.cl_path, params with
-		| (["flash"],"Vector"), [pt] -> print ctx "new Vector.<%s>(" (type_str ctx pt e.epos)
-		| _ -> print ctx "%s.new(" (s_path ctx true c.cl_path e.epos));
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")"
+		| (["haxe";"ds"],"StringMap"), [pt] -> print ctx "{}";
+		| (["haxe";"ds"],"IntMap"), [pt] -> print ctx "{}";
+		| _ -> 
+		    print ctx "%s.new(" (s_path ctx true c.cl_path e.epos);
+		    concat ctx "," (gen_value ctx) el;
+		    spr ctx ")";
+		);
 	| TIf (cond,e,None) when (match e.eexpr with TBlock _ -> false | TIf _ -> false | _ -> true) ->
 		gen_expr ctx e;
 		spr ctx " if";
@@ -805,7 +839,7 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ctx e =
 		print ctx "%s = " tmp;
 		gen_value ctx it;
 		newline ctx;
-		print ctx "while( %s.hasNext() ) do %s = %s._next()" tmp (s_ident v.v_name) tmp;
+		print ctx "while( %s.has_next() ) do %s = %s._next()" tmp (s_ident v.v_name) tmp;
 		newline ctx;
 		gen_expr ~preblocked:true  ~postblocked:true ctx e;
 		newline ctx;
@@ -867,36 +901,18 @@ and gen_value ctx e =
 	in
 	let value block =
 		let old = ctx.in_value in
-		let t = type_str ctx e.etype e.epos in
 		let r = alloc_var (gen_local ctx "$r") e.etype in
 		ctx.in_value <- Some r;
 		if ctx.in_static then
-			print ctx "function() : %s " t
+			print ctx "lambda{|| "
 		else
-			print ctx "(function($this:%s) : %s " (snd ctx.path) t;
-		let b = if block then begin
-			spr ctx "{";
-			let b = open_block ctx in
-			newline ctx;
-			print ctx "var %s : %s" r.v_name t;
-			newline ctx;
-			b
-		end else
-			(fun() -> ())
-		in
+			print ctx "lambda{|_this_| ";
 		(fun() ->
-			if block then begin
-				newline ctx;
-				print ctx "return %s" r.v_name;
-				b();
-				newline ctx;
-				spr ctx "}";
-			end;
-			ctx.in_value <- old;
-			if ctx.in_static then
-				print ctx "()"
-			else
-				print ctx "(%s))" (this ctx)
+		  ctx.in_value <- old;
+		  if ctx.in_static then
+		    print ctx "}.call()"
+		  else
+		    print ctx "}.call(%s)" (this ctx)
 		)
 	in
 	match e.eexpr with
