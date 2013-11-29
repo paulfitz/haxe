@@ -23,40 +23,43 @@ package haxe.ds;
 
 @:coreApi class IntMap<T> implements Map.IMap<Int,T> {
 
-	private var h : Dynamic;
-
 	public function new() : Void {
-		h = {};
 	}
 
-	public function set( key : Int, value : T ) : Void {
-		untyped h[key] = value;
+	public inline function set( key : Int, value : T ) : Void {
+	  //untyped h[key] = value;
+	  untyped __set__(this,key,value);
 	}
 
-	public function get( key : Int ) : Null<T> {
-		return untyped h[key];
+	public inline function get( key : Int ) : Null<T> {
+	  //return untyped h[key];
+	  return untyped __get__(this,key);
 	}
 
-	public function exists( key : Int ) : Bool {
-	  return untyped __js__("@h.include? key");
+	public inline function exists( key : Int ) : Bool {
+	  //return untyped __js__("@h.include? key");
+	  return untyped __dotcall__(this,"include?",key);
 	}
 
-	public function remove( key : Int ) : Bool {
-	  if (!exists(key)) return false;
-	  untyped __js__("@h.delete(key)");
-	  return true;
+	public inline function remove( key : Int ) : Bool {
+	  //if (!exists(key)) return false;
+	  //untyped __js__("@h.delete(key)");
+	  //return true;
+	  return untyped __dotcall__(this,"delete",key);
 	}
 
-	public function keys() : Iterator<Int> {
-	  return new rb.RubyIterator(untyped __js__("@h.keys"),null);
+	public inline function keys() : Iterator<Int> {
+	  return new rb.RubyIterator(untyped __dotcall__(this,"keys"),null);
+	  //return new rb.RubyIterator(untyped __js__("@h.keys"),null);
 	}
 
 
-	public function iterator() : Iterator<T> {
-	  return new rb.RubyIterator(untyped __js__("@h.keys"),untyped __js__("@h"));
+	public inline function iterator() : Iterator<T> {
+	  return new rb.RubyIterator(untyped __dotcall__(this,"keys"),this);
+	  //return new rb.RubyIterator(untyped __js__("@h.keys"),untyped __js__("@h"));
 	}
 
-	public function toString() : String {
+	public inline function toString() : String {
 	  return "not implemented yet";
 	  /*
 		var s = new StringBuf();
