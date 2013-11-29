@@ -44,6 +44,7 @@ type context = {
 	mutable constructor_block : bool;
 	mutable block_inits : (unit -> unit) option;
         mutable in_expression : bool;
+        mutable in_block_consumer : bool;
 }
 
 let is_var_field f =
@@ -130,6 +131,8 @@ let s_ident n =
   let ch = (String.get n 0) in
   if ch >= 'A' && ch <= 'Z' then
     "_" ^ n
+  else if n = "toString" then
+    "to_s"
   else
     if Hashtbl.mem reserved n then "_" ^ n else n
 
@@ -164,6 +167,7 @@ let init infos path =
 		constructor_block = false;
 		block_inits = None;
 	        in_expression = false;
+	        in_block_consumer = false;
 	}
 
 let close ctx =
@@ -197,7 +201,7 @@ let newline ctx =
 	loop (Buffer.length ctx.buf - 1)
 
 let block_newline ctx = match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
-	| '}' -> print ctx ";\n%s" ctx.tabs
+	| '}' -> print ctx "\n%s" ctx.tabs
 	| _ -> newline ctx
 
 let force_block e =
@@ -372,6 +376,7 @@ let gen_function_header ctx name f params p in_expression =
 	let old_t = ctx.local_types in
 	let old_bi = ctx.block_inits in
 	let old_ie = ctx.in_expression in
+	let old_ibc = ctx.in_block_consumer in
 	ctx.in_value <- None;
 	ctx.in_expression <- in_expression;
 	ctx.local_types <- List.map snd params @ ctx.local_types;
@@ -386,7 +391,7 @@ let gen_function_header ctx name f params p in_expression =
 		ctx.block_inits <- None;
 	in
 	ctx.block_inits <- Some init;
-	let str_def = (if in_expression then "lambda" else "def") in
+	let str_def = (if in_expression then (if ctx.in_block_consumer then "" else "lambda") else "def") in
 	let str_pre = (if in_expression then "{|" else "(") in
 	let str_post = (if in_expression then "|" else ")") in
 	if ctx.constructor_block then
@@ -417,6 +422,7 @@ let gen_function_header ctx name f params p in_expression =
 		ctx.local_types <- old_t;
 		ctx.block_inits <- old_bi;
 	        ctx.in_expression <- old_ie;
+	        ctx.in_block_consumer <- old_ibc;
 	)
 
 let rec gen_call ctx e el r =
@@ -451,6 +457,27 @@ let rec gen_call ctx e el r =
 	| TLocal { v_name = "__typeof__" }, [e] ->
 		spr ctx "typeof ";
 		gen_value ctx e;
+	| TLocal { v_name = "__dotcall__" }, eo :: { eexpr = TConst (TString code) } :: el ->
+	    gen_value ctx eo;	
+	    spr ctx ".";
+	    spr ctx code;
+	    spr ctx "(";
+	    concat ctx ", " (gen_value ctx) el;
+	    spr ctx ")";
+	| TLocal { v_name = "__pass_block__" }, [e0;e1;{ eexpr = TFunction _ } as e2] ->
+		gen_value ctx e0;
+		spr ctx ".";
+		gen_value ctx e1;
+	        ctx.in_block_consumer <- true;
+		gen_value ctx e2;
+	        ctx.in_block_consumer <- false;
+	| TLocal { v_name = "__pass_block__" }, [e0;e1;e2] ->
+		gen_value ctx e0;
+		spr ctx ".";
+		gen_value ctx e1;
+		spr ctx "{|a,b| (";
+		gen_value ctx e2;
+		spr ctx ").call(a,b)}";
 	| TLocal { v_name = "__js__" }, [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
 	| TLocal { v_name = "__keys__" }, [e] ->
@@ -664,8 +691,11 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ctx e =
 	| TFunction f ->
 		let h = gen_function_header ctx None f [] e.epos true in
 		let old = ctx.in_static in
+		let old_bc = ctx.in_block_consumer in
 		ctx.in_static <- true;
+	        ctx.in_block_consumer <- false;
 		gen_expr ~preblocked:true ctx f.tf_expr;
+		ctx.in_block_consumer <- old_bc;
 		ctx.in_static <- old;
 		h();
         | TCall( { eexpr = TField( _, FStatic({ cl_path = ([], "Math") }, { cf_name = "round" }) ) }, el) ->
@@ -1014,7 +1044,10 @@ let generate_field ctx static f =
 		in
 		if not static then loop ctx.curclass;
 		let h = gen_function_header ctx (Some (s_ident f.cf_name, f.cf_meta)) fd f.cf_params p false in
+		let old_bc = ctx.in_block_consumer in
+	        ctx.in_block_consumer <- false;
 		gen_expr ~preblocked:true ctx fd.tf_expr;
+		ctx.in_block_consumer <- old_bc;
 		h();
 		newline ctx
 	| _ ->
