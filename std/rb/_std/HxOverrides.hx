@@ -60,14 +60,7 @@ class HxOverrides {
 	}
 
 	static function cca( s : String, index : Int ) : Null<Int> {
-		#if mt
-		var x = (cast s).cca(index);
-		#else
-		var x = (cast s).charCodeAt(index);
-		#end
-		if( x != x ) // fast isNaN
-			return untyped undefined; // isNaN will still return true
-		return x;
+	  return untyped __js__("s[index].ord");
 	}
 
 	static function substr( s : String, pos : Int, ?len : Int ) : String {
@@ -80,7 +73,7 @@ class HxOverrides {
 			len = s.length + len - pos;
 		}
 
-		return (untyped s).substr(pos, len);
+		return untyped __js__("s[pos,pos+len]");
 	}
 
 	static function remove<T>( a : Array<T>, obj : T ) {
