@@ -32,7 +32,9 @@ extern class Array<T> {
 	function reverse() : Void;
 	function shift() : Null<T>;
 	function slice( pos : Int, ?end : Int ) : Array<T>;
-	function sort( f : T -> T -> Int ) : Void;
+  inline function sort( f : T -> T -> Int ) : Void {
+    untyped __pass_block__(this,untyped __js__("sort"),f);
+  }
 	function splice( pos : Int, len : Int ) : Array<T>;
 	function toString() : String;
 	function unshift( x : T ) : Void;

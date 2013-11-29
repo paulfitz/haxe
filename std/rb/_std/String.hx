@@ -26,7 +26,9 @@
 	function toUpperCase() : String;
 	function toLowerCase() : String;
 	function charAt( index : Int) : String;
-	function indexOf( str : String, ?startIndex : Int ) : Int;
+  inline function indexOf( str : String, ?startIndex : Int ) : Int {
+    return untyped __dotcall__(this,"index",str,startIndex||0)||-1;
+  }
 	function lastIndexOf( str : String, ?startIndex : Int ) : Int;
 	function split( delimiter : String ) : Array<String>;
 	function toString() : String;
@@ -40,5 +42,8 @@
 		return untyped HxOverrides.substr(this, pos, len);
 	}
 
-	static function fromCharCode( code : Int ) : String;
+  inline static function fromCharCode( code : Int ) : String {
+    // e.g. [0x2B71F].pack 'U'
+    return untyped __dotcall__([code],"pack",'U');
+  }
 }
