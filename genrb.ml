@@ -68,7 +68,13 @@ let tweak_class_name n =
 let tweak_package_name n =
   (String.capitalize n)
 
+let camel_to_underscore n = 
+  let r = Str.regexp "\\([a-z]\\)\\([A-Z]\\)" in
+  String.lowercase (Str.global_replace r "\\1_\\2" n)
+
 let tweak_s_type_path (p,s) = match p with [] -> s | _ -> "::" ^ String.concat "::" (List.map tweak_package_name p) ^ "::" ^ s
+
+let req_path (p,s) = match p with [] -> camel_to_underscore(s) | _ -> String.concat "/" (List.map camel_to_underscore p) ^ "/" ^ camel_to_underscore(s)
 
 
 let protect name =
@@ -146,8 +152,7 @@ let rec create_dir acc = function
 let init infos path =
 	let dir = infos.com.file :: fst path in
 	create_dir [] dir;
-	let r = Str.regexp "\\([a-z]\\)\\([A-Z]\\)" in
-	let ch = open_out (String.concat "/" dir ^ "/" ^ (String.lowercase (Str.global_replace r "\\1_\\2" (snd path))) ^ ".rb") in
+	let ch = open_out (String.concat "/" dir ^ "/" ^ (camel_to_underscore (snd path)) ^ ".rb") in
 	let imports = Hashtbl.create 0 in
 	Hashtbl.add imports (snd path) [fst path];
 	{
@@ -173,12 +178,6 @@ let init infos path =
 let close ctx =
   let module_name = (String.concat "::" (List.map tweak_package_name (fst ctx.path))) in
   output_string ctx.ch (Printf.sprintf "%s %s\n" (if module_name <> "" then "module" else "begin") module_name);
-	Hashtbl.iter (fun name paths ->
-		List.iter (fun pack ->
-			let path = pack, name in
-			if path <> ctx.path then output_string ctx.ch ("  # import " ^ Ast.s_type_path path ^ ";\n");
-		) paths
-	) ctx.imports;
 	output_string ctx.ch (Buffer.contents ctx.buf);
 	close_out ctx.ch
 
@@ -822,29 +821,23 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ctx e =
 		) catchs;
 	| TPatMatch dt -> assert false
 	| TSwitch (e,cases,def) ->
-		spr ctx "switch";
+		spr ctx "case";
 		gen_value ctx (parent e);
-		spr ctx " {";
 		newline ctx;
 		List.iter (fun (el,e2) ->
 			List.iter (fun e ->
-				spr ctx "case ";
+				spr ctx "when ";
 				gen_value ctx e;
-				spr ctx ":";
 			) el;
 			gen_block ctx e2;
-			print ctx "break";
-			newline ctx;
 		) cases;
 		(match def with
 		| None -> ()
 		| Some e ->
-			spr ctx "default:";
+			spr ctx "else";
 			gen_block ctx e;
-			print ctx "break";
-			newline ctx;
 		);
-		spr ctx "}"
+		spr ctx "end"
 	| TCast (e1,None) ->
 		spr ctx "((";
 		gen_expr ctx e1;
@@ -853,12 +846,14 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ctx e =
 		gen_expr ctx (Codegen.default_cast ctx.inf.com e1 t e.etype e.epos)
 
 and gen_block ctx e =
-	newline ctx;
-	match e.eexpr with
-	| TBlock [] -> ()
-	| _ ->
-		gen_expr ctx e;
-		newline ctx
+  let b = open_block ctx in
+  newline ctx;
+  match e.eexpr with
+  | TBlock [] -> b()
+  | _ ->
+      gen_expr ctx e;
+      b();
+      newline ctx
 
 and gen_value ctx e =
 	let assign e =
@@ -1064,10 +1059,10 @@ let generate_field ctx static f =
 				print ctx "def %s(" (loop f.cf_meta);
 				concat ctx "," (fun (arg,o,t) ->
 					let tstr = type_str ctx t p in
-					print ctx "%s : %s" arg tstr;
+					print ctx "%s" arg;
 					if o then print ctx " = %s" (default_value tstr);
 				) args;
-				print ctx ") : %s " (type_str ctx r p);
+				print ctx ") puts \"Abstract %s.%s called\" end" (tweak_class_name (snd ctx.curclass.cl_path)) (loop f.cf_meta);
 			| _ when is_getset ->
 				let t = type_str ctx f.cf_type p in
 				let id = s_ident f.cf_name in
@@ -1142,7 +1137,7 @@ let generate_class ctx c =
 	define_getset ctx false c;
 	ctx.local_types <- List.map snd c.cl_types;
 	let pack = open_block ctx in
-	print ctx "  %s%s%s %s " (final c.cl_meta) (match c.cl_dynamic with None -> "" | Some _ -> if c.cl_interface then "" else "dynamic ") (if c.cl_interface then "interface" else "class") (tweak_class_name (snd c.cl_path));
+	print ctx "  %s%s%s %s " (final c.cl_meta) (match c.cl_dynamic with None -> "" | Some _ -> if c.cl_interface then "" else "dynamic ") (if c.cl_interface then "class" else "class") (tweak_class_name (snd c.cl_path));
 	(match c.cl_super with
 	| None -> ()
 	| Some (csup,_) -> print ctx "extends %s " (s_path ctx true csup.cl_path c.cl_pos));
@@ -1169,37 +1164,27 @@ let generate_class ctx c =
 	List.iter (generate_field ctx true) c.cl_ordered_statics;
 	cl();
 	newline ctx;
-	print ctx "end";
+	spr ctx "end";
 	pack();
 	newline ctx;
-	print ctx "end";
-	newline ctx
+	spr ctx "end"
 
-let generate_main ctx inits =
-	ctx.curclass <- { null_class with cl_path = [],"__main__" };
-	let pack = open_block ctx in
-	print ctx "  import flash.Lib";
-	newline ctx;
-	print ctx "public class __main__ extends %s {" (s_path ctx true (["flash"],"Boot") Ast.null_pos);
-	let cl = open_block ctx in
-	newline ctx;
-	spr ctx "public function __main__() {";
-	let fl = open_block ctx in
-	newline ctx;
-	spr ctx "super()";
-	newline ctx;
-	spr ctx "flash.Lib.current = this";
-	List.iter (fun e -> newline ctx; gen_expr ctx e) inits;
-	fl();
-	newline ctx;
-	print ctx "}";
-	cl();
-	newline ctx;
-	print ctx "}";
-	pack();
-	newline ctx;
-	print ctx "}";
-	newline ctx
+let generate_main ctx inits types com =
+  ctx.curclass <- { null_class with cl_path = [],"index" };
+  let pack = open_block ctx in
+  spr ctx "  # Hello good evening and welcome to a translation from the original Haxe";
+  List.iter (fun c ->
+    newline ctx;
+    print ctx "require '%s'" (req_path c.cl_path);
+	    ) types;
+
+  (match com.main with
+  | None -> ()
+  | Some e -> newline ctx; gen_expr ctx e);
+  pack();
+  newline ctx;
+
+  spr ctx "end"
 
 let generate_enum ctx e =
 	ctx.local_types <- List.map snd e.e_types;
@@ -1273,6 +1258,7 @@ let generate com =
 	let ctx = init infos ([],"enum") in
 	generate_base_enum ctx;
 	close ctx;
+	let reqs = ref [] in
 	let inits = ref [] in
 	List.iter (fun t ->
 		match t with
@@ -1289,6 +1275,7 @@ let generate com =
 			else
 				let ctx = init infos c.cl_path in
 				generate_class ctx c;
+				reqs := !reqs @ [c];
 				close ctx
 		| TEnumDecl e ->
 			let pack,name = e.e_path in
@@ -1305,6 +1292,6 @@ let generate com =
 	(match com.main with
 	| None -> ()
 	| Some e -> inits := e :: !inits);
-	let ctx = init infos ([],"__main__") in
-	generate_main ctx (List.rev !inits);
+	let ctx = init infos ([],"index") in
+	generate_main ctx (List.rev !inits) !reqs com;
 	close ctx
