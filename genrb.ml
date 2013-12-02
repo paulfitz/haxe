@@ -127,7 +127,8 @@ let reserved =
 	(* we don't include get+set since they are not 'real' keywords, but they can't be used as method names *)
 	"function";"class";"var";"if";"else";"while";"do";"for";"break";"next";"return";"extends";"implements";
 	"import";"switch";"case";"default";"static";"public";"private";"try";"catch";"new";"this";"throw";"interface";
-	"override";"package";"nil";"true";"false";"void"
+	"override";"package";"nil";"true";"false";"void";
+	 "begin";"rescue";"end";
 	];
 	h
 
@@ -455,9 +456,9 @@ let rec gen_call ctx e el r =
 		gen_value ctx e1;
 		spr ctx " in ";
 		gen_value ctx e2;
-	| TLocal { v_name = "__as__" }, [e1;e2] ->
+	| TLocal { v_name = "__pow__" }, [e1;e2] ->
 		gen_value ctx e1;
-		spr ctx " as ";
+		spr ctx " ** ";
 		gen_value ctx e2;
 	| TLocal { v_name = "__int__" }, [e] ->
 		spr ctx "int(";
@@ -566,7 +567,7 @@ let rec gen_call ctx e el r =
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")";
-		spr ctx "(";
+		spr ctx ".call(";
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 	| _ ->
@@ -728,22 +729,6 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ctx e =
 		ctx.in_block_consumer <- old_bc;
 		ctx.in_static <- old;
 		h();
-        | TCall( { eexpr = TField( _, FStatic({ cl_path = ([], "Math") }, { cf_name = "round" }) ) }, el) ->
-	    spr ctx "(";
-	    concat ctx "," (gen_value ctx) el;
-	    spr ctx ").round";
-        | TCall( { eexpr = TField( _, FStatic({ cl_path = ([], "Math") }, { cf_name = "pow" }) ) }, el) ->
-	    spr ctx "(";
-	    concat ctx " ** " (gen_value ctx) el;
-	    spr ctx ")";
-        | TCall( { eexpr = TField( _, FStatic({ cl_path = ([], "Math") }, { cf_name = "max" }) ) }, el) ->
-	    spr ctx "[";
-	    concat ctx "," (gen_value ctx) el;
-	    spr ctx "].max";
-        | TCall( { eexpr = TField( _, FStatic({ cl_path = ([], "Math") }, { cf_name = "min" }) ) }, el) ->
-	    spr ctx "[";
-	    concat ctx "," (gen_value ctx) el;
-	    spr ctx "].min";
 	| TCall (v,el) ->
 		gen_call ctx v el e.etype
 	| TArrayDecl el ->
@@ -846,13 +831,16 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ctx e =
 		spr ctx "end";
 		handle_break();
 	| TTry (e,catchs) ->
-		spr ctx "try ";
-		gen_expr ctx e;
+		gen_expr ~postblocked:true ctx e;
 		List.iter (fun (v,e) ->
-			newline ctx;
-			print ctx "catch( %s : %s )" (s_ident v.v_name) (type_str ctx v.v_type e.epos);
-			gen_expr ctx e;
-		) catchs;
+		  newline ctx;
+		  let tstr = type_str ctx v.v_type e.epos in
+		  if tstr <> "*" then
+		    print ctx "rescue %s => %s" (type_str ctx v.v_type e.epos) (s_ident v.v_name)
+		  else
+		    print ctx "rescue %s" (s_ident v.v_name);
+		  gen_expr ~preblocked:true ctx e;
+			  ) catchs;
 	| TPatMatch dt -> assert false
 	| TSwitch (e,cases,def) ->
 		spr ctx "case";
