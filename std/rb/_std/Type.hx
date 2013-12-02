@@ -149,33 +149,20 @@ enum ValueType {
 	}
 
 	public static function typeof( v : Dynamic ) : ValueType untyped {
-		switch( __js__("typeof")(v) ) {
-		case "boolean": return TBool;
-		case "string": return TClass(String);
-		case "number":
-			// this should handle all cases : NaN, +/-Inf and Floats outside range
-			if( Math.ceil(v) == v%2147483648.0 )
-				return TInt;
-			return TFloat;
-		case "object":
-			if( v == null )
-				return TNull;
-			var e = v.__enum__;
-			if( e != null )
-				return TEnum(e);
-			var c = rb.Boot.getClass(v);
-			if( c != null )
-				return TClass(c);
-			return TObject;
-		case "function":
-			if( rb.Boot.isClass(v) || rb.Boot.isEnum(v) )
-				return TObject;
-			return TFunction;
-		case "undefined":
-			return TNull;
-		default:
-			return TUnknown;
-		}
+	  switch( untyped __dotcall__(v,"class.to_s")) {
+	  case "TrueClass": return TBool;
+	  case "FalseClass": return TBool;
+	  case "String": return TClass(String);
+	  case "Fixnum": return TInt;
+	  case "Float": return TFloat;
+	  case "Proc": return TFunction;
+	  case "NilClass": return TNull;
+	  default:
+	    var c = rb.Boot.getClass(v);
+	    if( c != null )
+	      return TClass(c);
+	    return TUnknown;
+	  }
 	}
 
 	public static function enumEq<T>( a : T, b : T ) : Bool untyped {
