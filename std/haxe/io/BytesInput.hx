@@ -102,6 +102,8 @@ class BytesInput extends Input {
 			return untyped b[pos++];
 			#elseif java
 			return untyped b[pos++] & 0xFF;
+			#elseif rb
+			return untyped b.getbyte(pos++);
 			#else
 			return b[pos++];
 			#end
