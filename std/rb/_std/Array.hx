@@ -31,17 +31,20 @@ extern class Array<T> {
 	function push(x : T) : Int;
 	function reverse() : Void;
 	function shift() : Null<T>;
-	function slice( pos : Int, ?end : Int ) : Array<T>;
+  inline function slice( pos : Int, ?end : Int ) : Array<T> {
+    return untyped __dotcall__(this,"slice",pos,end-pos-1);
+  }
+
   inline function sort( f : T -> T -> Int ) : Void {
     untyped __pass_block__(this,untyped __js__("sort"),f);
   }
-	function splice( pos : Int, len : Int ) : Array<T>;
+  inline function splice( pos : Int, len : Int ) : Array<T> {
+    return untyped __dotcall__(this,"slice!",pos,len);
+  }
 	function toString() : String;
 	function unshift( x : T ) : Void;
 
-	inline function insert( pos : Int, x : T ) : Void {
-		(untyped this).splice(pos,0,x);
-	}
+  function insert( pos : Int, x : T ) : Void;
 
 	inline function remove( x : T ) : Bool {
 		return untyped HxOverrides.remove(this,x);

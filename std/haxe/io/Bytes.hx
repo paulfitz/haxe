@@ -42,6 +42,8 @@ class Bytes {
 		return untyped b[pos];
 		#elseif java
 		return untyped b[pos] & 0xFF;
+		#elseif rb
+		return untyped __dotcall__(b,"getbyte",pos);
 		#else
 		return b[pos];
 		#end
@@ -60,6 +62,8 @@ class Bytes {
 		b[pos] = cast v;
 		#elseif cs
 		b[pos] = cast v;
+		#elseif rb
+		untyped __dotcall__(b,"setbyte",pos,v);
 		#else
 		b[pos] = v & 0xFF;
 		#end
@@ -134,6 +138,8 @@ class Bytes {
 		var newarr = new cs.NativeArray(len);
 		cs.system.Array.Copy(b, pos, newarr, 0, len);
 		return new Bytes(len, newarr);
+		#elseif rb
+		return new Bytes(len,untyped __dotcall__(b,"byteslice",pos,len));
 		#else
 		return new Bytes(len,b.slice(pos,pos+len));
 		#end
@@ -198,6 +204,8 @@ class Bytes {
 		try
 			return new String(b, pos, len, "UTF-8")
 		catch (e:Dynamic) throw e;
+		#elseif rb
+		return untyped  __dotcall__(b,"byteslice",pos,len);
 		#else
 		var s = "";
 		var b = b;
@@ -281,6 +289,8 @@ class Bytes {
 		return new Bytes(length, new cs.NativeArray(length));
 		#elseif java
 		return new Bytes(length, new java.NativeArray(length));
+		#elseif rb
+		return new Bytes(length, untyped (" " * length));
 		#else
 		var a = new Array();
 		for( i in 0...length )
@@ -313,6 +323,8 @@ class Bytes {
 			return new Bytes(b.length, b);
 		}
 		catch (e:Dynamic) throw e;
+		#elseif rb
+		return new Bytes(untyped __dotcall__(s,"bytesize"), untyped s);
 		#else
 		var a = new Array();
 		// utf8-decode
@@ -347,6 +359,8 @@ class Bytes {
 		return new Bytes(untyped __call__("strlen", b), b);
 		#elseif cs
 		return new Bytes(b.Length,b);
+		#elseif rb
+		return new Bytes(untyped b.bytesize,b);
 		#else
 		return new Bytes(b.length,b);
 		#end
@@ -367,6 +381,8 @@ class Bytes {
 		return untyped b[pos];
 		#elseif java
 		return untyped b[pos] & 0xFF;
+		#elseif rb
+		return untyped __dotcall__(b,"getbyte",pos);
 		#else
 		return b[pos];
 		#end
