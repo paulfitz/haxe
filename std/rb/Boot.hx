@@ -160,6 +160,7 @@ class Boot {
 	}
 
 	@:ifFeature("typed_catch") private static function __instanceof(o : Dynamic,cl : Dynamic) {
+	        return false;
 		if( cl == null )
 			return false;
 		switch( cl ) {
@@ -188,9 +189,6 @@ class Boot {
 			} else {
 				return false;
 			}
-			// do not use isClass/isEnum here
-			untyped __feature__("Class.*",if( cl == Class && o.__name__ != null ) return true);
-			untyped __feature__("Enum.*",if( cl == Enum && o.__ename__ != null ) return true);
 			return o.__enum__ == cl;
 		}
 	}
