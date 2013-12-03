@@ -51,6 +51,8 @@ class Bytes {
 		return untyped b[pos] & 0xFF;
 		#elseif python
 		return python.Syntax.arrayAccess(b, pos);
+		#elseif rb
+		return untyped __dotcall__(b,"getbyte",pos);
 		#else
 		return b[pos];
 		#end
@@ -71,6 +73,8 @@ class Bytes {
 		b[pos] = cast v;
 		#elseif python
 		python.Syntax.arraySet(b, pos, v & 0xFF);
+		#elseif rb
+		untyped __dotcall__(b,"setbyte",pos,v);
 		#else
 		b[pos] = v & 0xFF;
 		#end
@@ -153,6 +157,8 @@ class Bytes {
 		return new Bytes(len, newarr);
 		#elseif python
 		return new Bytes(len, python.Syntax.arrayAccess(b, pos, pos+len) );
+		#elseif rb
+		return new Bytes(len,untyped __dotcall__(b,"byteslice",pos,len));
 		#else
 		return new Bytes(len,b.slice(pos,pos+len));
 		#end
@@ -340,6 +346,8 @@ class Bytes {
 		catch (e:Dynamic) throw e;
 		#elseif python
 		return python.Syntax.pythonCode("self.b[pos:pos+len].decode('UTF-8','replace')");
+		#elseif rb
+		return untyped  __dotcall__(b,"byteslice",pos,len);
 		#else
 		var s = "";
 		var b = b;
@@ -434,6 +442,8 @@ class Bytes {
 		return new Bytes(length, new java.NativeArray(length));
 		#elseif python
 		return new Bytes(length, python.lib.Builtin.bytearray(length));
+		#elseif rb
+		return new Bytes(length, untyped (" " * length));
 		#else
 		var a = new Array();
 		for( i in 0...length )
@@ -471,6 +481,8 @@ class Bytes {
 			var b:BytesData = python.lib.Builtin.bytearray(s, "UTF-8");
 			return new Bytes(b.length, b);
 
+		#elseif rb
+		return new Bytes(untyped __dotcall__(s,"bytesize"), untyped s);
 		#else
 		var a = new Array();
 		// utf16-decode and utf8-encode
@@ -509,6 +521,8 @@ class Bytes {
 		return new Bytes(untyped __call__("strlen", b), b);
 		#elseif cs
 		return new Bytes(b.Length,b);
+		#elseif rb
+		return new Bytes(untyped b.bytesize,b);
 		#else
 		return new Bytes(b.length,b);
 		#end
@@ -529,6 +543,8 @@ class Bytes {
 		return untyped b.unsafeGet(pos);
 		#elseif java
 		return untyped b[pos] & 0xFF;
+		#elseif rb
+		return untyped __dotcall__(b,"getbyte",pos);
 		#else
 		return b[pos];
 		#end

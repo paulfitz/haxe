@@ -19,27 +19,37 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package haxe.io;
+package sys.net;
 
-#if neko
-	typedef BytesData =	neko.NativeString;
-#elseif flash9
-	typedef BytesData =	flash.utils.ByteArray;
-#elseif php
-	typedef BytesData =	php.NativeString;
-#elseif cpp
-	extern class Unsigned_char__ { }
-	typedef BytesData = Array<Unsigned_char__>;
-#elseif java
-	typedef BytesData = java.NativeArray<java.StdTypes.Int8>;
-#elseif cs
-	typedef BytesData = cs.NativeArray<cs.StdTypes.UInt8>;
-#elseif python
-	typedef BytesData = python.lib.ByteArray;
-#elseif js
-	typedef BytesData = js.html.Uint8Array;
-#elseif rb
-	typedef BytesData = rb.NativeString;
-#else
-	typedef BytesData = Array<Int>;
-#end
+@:coreApi
+class Host {
+
+	private var _ip : String;
+	public var ip(default,null) : Int;
+
+	public function new( name : String ) : Void {
+		if(~/^(\d{1,3}\.){3}\d{1,3}$/.match(name)) {
+		  _ip = name;
+		} else {
+			_ip = untyped __call__('gethostbyname', name);
+			if(_ip == name) {
+				ip = 0;
+				return;
+			}
+		}
+		var p = _ip.split('.');
+		ip = untyped __call__('intval', __call__('sprintf', '%02X%02X%02X%02X', p[3], p[2], p[1], p[0]), 16);
+	}
+
+	public function toString() : String {
+		return _ip;
+	}
+
+	public function reverse() : String {
+		return untyped __call__('gethostbyaddress', _ip);
+	}
+
+	public static function localhost() : String {
+		return untyped __var__('_SERVER', 'HTTP_HOST');
+	}
+}

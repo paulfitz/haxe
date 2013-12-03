@@ -19,27 +19,30 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package haxe.io;
+package sys.db;
 
-#if neko
-	typedef BytesData =	neko.NativeString;
-#elseif flash9
-	typedef BytesData =	flash.utils.ByteArray;
-#elseif php
-	typedef BytesData =	php.NativeString;
-#elseif cpp
-	extern class Unsigned_char__ { }
-	typedef BytesData = Array<Unsigned_char__>;
-#elseif java
-	typedef BytesData = java.NativeArray<java.StdTypes.Int8>;
-#elseif cs
-	typedef BytesData = cs.NativeArray<cs.StdTypes.UInt8>;
-#elseif python
-	typedef BytesData = python.lib.ByteArray;
-#elseif js
-	typedef BytesData = js.html.Uint8Array;
-#elseif rb
-	typedef BytesData = rb.NativeString;
-#else
-	typedef BytesData = Array<Int>;
-#end
+import sys.db.Connection;
+
+@:coreApi class Mysql {
+
+	public static function connect( params : {
+		host : String,
+		?port : Int,
+		user : String,
+		pass : String,
+		?socket : String,
+		database : String
+	} ) : sys.db.Connection {
+		var dsn="mysql:";
+		if (params.socket !=null)
+			dsn+="unix_socket="+params.socket+";";
+		else{
+			dsn+="host="+params.host+";"; 
+			if (params.port!=null)
+				dsn+='port='+params.port+";";
+		}
+		dsn+="dbname="+params.database;
+		return php.db.PDO.open(dsn,params.user,params.pass);
+	}
+
+}

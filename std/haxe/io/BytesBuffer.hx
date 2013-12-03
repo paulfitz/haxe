@@ -35,6 +35,8 @@ class BytesBuffer {
 	var b : cs.system.io.MemoryStream;
 	#elseif java
 	var b : java.io.ByteArrayOutputStream;
+	#elseif rb
+        var b : String;
 	#else
 	var b : Array<Int>;
 	#end
@@ -56,6 +58,8 @@ class BytesBuffer {
 		b = new cs.system.io.MemoryStream();
 		#elseif java
 		b = new java.io.ByteArrayOutputStream();
+		#elseif rb
+		b = new String("");
 		#else
 		b = new Array();
 		#end
@@ -86,6 +90,8 @@ class BytesBuffer {
 		b.WriteByte(cast byte);
 		#elseif java
 		b.write(byte);
+		#elseif rb
+		untyped b.concat(byte);
 		#else
 		b.push(byte);
 		#end
@@ -102,6 +108,8 @@ class BytesBuffer {
 		b.Write(src.getData(), 0, src.length);
 		#elseif java
 		b.write(src.getData(), 0, src.length);
+		#elseif rb
+		b += cast src.getData();
 		#else
 		var b1 = b;
 		var b2 = src.getData();
@@ -158,6 +166,8 @@ class BytesBuffer {
 		b.Write(src.getData(), pos, len);
 		#elseif java
 		b.write(src.getData(), pos, len);
+		#elseif rb
+		b += untyped __dotcall__(src.b,"byteslice", pos, len);
 		#else
 		var b1 = b;
 		var b2 = src.getData();
@@ -190,6 +200,8 @@ class BytesBuffer {
 		var bytes = new Bytes(buf.length, buf);
 		#elseif js
 		var bytes = new Bytes(b.length,new BytesData(b));
+		#elseif rb
+		var bytes = new Bytes(b.length, cast b);
 		#else
 		var bytes = new Bytes(b.length,b);
 		#end
