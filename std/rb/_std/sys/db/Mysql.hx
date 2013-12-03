@@ -19,46 +19,30 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi
-extern class Array<T> {
+package sys.db;
 
-	var length(default,null) : Int;
+import sys.db.Connection;
 
-	function new() : Void;
-	function concat( a : Array<T> ) : Array<T>;
-	function join( sep : String ) : String;
-	function pop() : Null<T>;
-	function push(x : T) : Int;
-	function reverse() : Void;
-	function shift() : Null<T>;
-  inline function slice( pos : Int, ?end : Int ) : Array<T> {
-    return untyped __dotcall__(this,"slice",pos,end-pos-1);
-  }
+@:coreApi class Mysql {
 
-  inline function sort( f : T -> T -> Int ) : Void {
-    untyped __pass_block__(this,untyped __js__("sort"),f);
-  }
-  inline function splice( pos : Int, len : Int ) : Array<T> {
-    return untyped __dotcall__(this,"slice!",pos,len);
-  }
-	function toString() : String;
-	function unshift( x : T ) : Void;
-
-  function insert( pos : Int, x : T ) : Void;
-
-	inline function remove( x : T ) : Bool {
-		return untyped HxOverrides.remove(this,x);
-	}
-
-	inline function copy() : Array<T> {
-		return (untyped this).slice();
-	}
-
-	function map<S>(f:T->S):Array<S>;
-	function filter(f:T->Bool):Array<T>;
-
-	@:runtime inline function iterator() : Iterator<T> {
-		return untyped HxOverrides.iter(this);
+	public static function connect( params : {
+		host : String,
+		?port : Int,
+		user : String,
+		pass : String,
+		?socket : String,
+		database : String
+	} ) : sys.db.Connection {
+		var dsn="mysql:";
+		if (params.socket !=null)
+			dsn+="unix_socket="+params.socket+";";
+		else{
+			dsn+="host="+params.host+";"; 
+			if (params.port!=null)
+				dsn+='port='+params.port+";";
+		}
+		dsn+="dbname="+params.database;
+		return php.db.PDO.open(dsn,params.user,params.pass);
 	}
 
 }

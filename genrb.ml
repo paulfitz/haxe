@@ -342,6 +342,18 @@ let handle_break ctx e =
 
 let this ctx = if ctx.in_value <> None then "_this_" else "self"
 
+let has_feature ctx = Common.has_feature ctx.inf.com
+let add_feature ctx = Common.add_feature ctx.inf.com
+
+let is_dynamic_iterator ctx e =
+	let check x =
+		has_feature ctx "HxOverrides.iter" && (match follow x.etype with TInst ({ cl_path = [],"Array" },_) | TAnon _ | TDynamic _ | TMono _ -> true | _ -> false)
+	in
+	match e.eexpr with
+	| TField (x,f) when field_name f = "iterator" -> check x
+	| _ ->
+		false
+
 let generate_resources infos =
 	if Hashtbl.length infos.com.resources <> 0 then begin
 		let dir = (infos.com.file :: ["__res"]) in
@@ -549,6 +561,13 @@ let rec gen_call ctx e el r =
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")"
+	| TLocal x, el when (match x.v_type with TFun _ -> true | TAnon _ -> true | _ -> false) ->
+		spr ctx "(";
+		gen_value ctx e;
+		spr ctx ").call";
+		spr ctx "(";
+		concat ctx "," (gen_value ctx) el;
+		spr ctx ")";
 	| TField (_, FStatic( { cl_path = (["flash"],"Lib") }, { cf_name = "as" })), [e1;e2] ->
 		gen_value ctx e1;
 		spr ctx " as ";
@@ -651,6 +670,11 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ctx e =
 		gen_field_access ctx e1.etype s;
 		print ctx " %s " (Ast.s_binop op);
 		gen_value_op ctx e2; *)
+	| TField (x,f) when field_name f = "iterator" && is_dynamic_iterator ctx e ->
+	    add_feature ctx "use.$iterator";
+	    print ctx "_hx_iterator(";
+	    gen_value ctx x;
+	    print ctx ").call";
 	| TBinop (op,e1,e2) ->
 		gen_value_op ctx e1;
 		print ctx " %s " (Ast.s_binop op);
@@ -824,7 +848,7 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ctx e =
 		print ctx "%s = " tmp;
 		gen_value ctx it;
 		newline ctx;
-		print ctx "while( %s.has_next() ) do %s = %s._next()" tmp (s_ident v.v_name) tmp;
+		print ctx "while( _hx_call(%s,:has_next) ) do %s = _hx_call(%s,:_next)" tmp (s_ident v.v_name) tmp;
 		newline ctx;
 		gen_expr ~preblocked:true  ~postblocked:true ctx e;
 		newline ctx;
@@ -838,7 +862,7 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ctx e =
 		  if tstr <> "*" then
 		    print ctx "rescue %s => %s" (type_str ctx v.v_type e.epos) (s_ident v.v_name)
 		  else
-		    print ctx "rescue %s" (s_ident v.v_name);
+		    print ctx "rescue => %s" (s_ident v.v_name);
 		  gen_expr ~preblocked:true ctx e;
 			  ) catchs;
 	| TPatMatch dt -> assert false
@@ -866,6 +890,7 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ctx e =
 		print ctx ") as %s)" (type_str ctx e.etype e.epos);
 	| TCast (e1,Some t) ->
 		gen_expr ctx (Codegen.default_cast ctx.inf.com e1 t e.etype e.epos)
+
 
 and gen_block ctx e =
   let b = open_block ctx in
@@ -1037,7 +1062,7 @@ let generate_field ctx static f =
 			| None -> ()
 			| Some (c,_) ->
 				if PMap.mem f.cf_name c.cl_fields then
-					spr ctx "override "
+					spr ctx " " (* "override " *)
 				else
 					loop c
 		in
@@ -1144,7 +1169,7 @@ let generate_class ctx c =
 	print ctx "  %s%s%s %s " (final c.cl_meta) (match c.cl_dynamic with None -> "" | Some _ -> if c.cl_interface then "" else "dynamic ") (if c.cl_interface then "class" else "class") (tweak_class_name (snd c.cl_path));
 	(match c.cl_super with
 	| None -> ()
-	| Some (csup,_) -> print ctx "extends %s " (s_path ctx true csup.cl_path c.cl_pos));
+	| Some (csup,_) -> print ctx "< %s " (s_path ctx true csup.cl_path c.cl_pos));
 	(match c.cl_implements with
 	| [] -> ()
 	| l ->
@@ -1177,6 +1202,24 @@ let generate_main ctx inits types com =
   ctx.curclass <- { null_class with cl_path = [],"index" };
   let pack = open_block ctx in
   spr ctx "  # Hello good evening and welcome to a translation from the original Haxe";
+  let rec chk_features e =
+    if is_dynamic_iterator ctx e then add_feature ctx "use.$iterator";
+    match e.eexpr with
+    | TField (_,FClosure _) ->
+	add_feature ctx "use.$bind"
+    | _ ->
+	Type.iter chk_features e
+  in
+  List.iter chk_features inits;
+  newline ctx;
+  if has_feature ctx "use.$iterator" then begin
+    add_feature ctx "use.$bind";
+    newline ctx;
+    print ctx "def _hx_iterator(o) return lambda{|| (o.class == Array) ? ::Rb::RubyIterator.new(o,nil) : ((o.respond_to? 'iterator') ? o.iterator : o)} end";
+    newline ctx;
+    print ctx "def _hx_call(o,k) ((o.respond_to? k) ? o.method(k).call : o[k].call) end";
+    newline ctx;
+  end;
   List.iter (fun c ->
     newline ctx;
     print ctx "require '%s'" (req_path c.cl_path);

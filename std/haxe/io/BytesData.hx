@@ -58,6 +58,8 @@ package haxe.io;
 		}
 	}
 	typedef BytesData = BytesDataAbstract;
+#elseif rb
+	typedef BytesData = rb.NativeString;
 #else
 	typedef BytesData = Array<Int>;
 #end

@@ -19,46 +19,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi
-extern class Array<T> {
+package rb;
 
-	var length(default,null) : Int;
-
-	function new() : Void;
-	function concat( a : Array<T> ) : Array<T>;
-	function join( sep : String ) : String;
-	function pop() : Null<T>;
-	function push(x : T) : Int;
-	function reverse() : Void;
-	function shift() : Null<T>;
-  inline function slice( pos : Int, ?end : Int ) : Array<T> {
-    return untyped __dotcall__(this,"slice",pos,end-pos-1);
-  }
-
-  inline function sort( f : T -> T -> Int ) : Void {
-    untyped __pass_block__(this,untyped __js__("sort"),f);
-  }
-  inline function splice( pos : Int, len : Int ) : Array<T> {
-    return untyped __dotcall__(this,"slice!",pos,len);
-  }
-	function toString() : String;
-	function unshift( x : T ) : Void;
-
-  function insert( pos : Int, x : T ) : Void;
-
-	inline function remove( x : T ) : Bool {
-		return untyped HxOverrides.remove(this,x);
-	}
-
-	inline function copy() : Array<T> {
-		return (untyped this).slice();
-	}
-
-	function map<S>(f:T->S):Array<S>;
-	function filter(f:T->Bool):Array<T>;
-
-	@:runtime inline function iterator() : Iterator<T> {
-		return untyped HxOverrides.iter(this);
-	}
+extern class NativeString implements ArrayAccess<String> {
 
 }

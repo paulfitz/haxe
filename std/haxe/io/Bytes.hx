@@ -51,6 +51,8 @@ class Bytes {
 		return untyped b[pos] & 0xFF;
 		#elseif python
 		return python.Syntax.arrayAccess(b, pos);
+		#elseif rb
+		return untyped __dotcall__(b,"getbyte",pos);
 		#else
 		return b[pos];
 		#end
@@ -71,6 +73,8 @@ class Bytes {
 		b[pos] = cast v;
 		#elseif python
 		python.Syntax.arraySet(b, pos, v & 0xFF);
+		#elseif rb
+		untyped __dotcall__(b,"setbyte",pos,v);
 		#else
 		b[pos] = v & 0xFF;
 		#end
@@ -153,6 +157,8 @@ class Bytes {
 		return new Bytes(len, newarr);
 		#elseif python
 		return new Bytes(len, python.Syntax.arrayAccess(b, pos, pos+len) );
+		#elseif rb
+		return new Bytes(len,untyped __dotcall__(b,"byteslice",pos,len));
 		#else
 		return new Bytes(len,b.slice(pos,pos+len));
 		#end
@@ -384,6 +390,8 @@ class Bytes {
 		var begin = cast(Math.min(pos,b.length),Int);
 		var end = cast(Math.min(pos+len,b.length),Int);
 		return [for (i in begin...end) String.fromCharCode(b[i])].join("");
+		#elseif rb
+		return untyped  __dotcall__(b,"byteslice",pos,len);
 		#else
 		var s = "";
 		var b = b;
@@ -478,6 +486,8 @@ class Bytes {
 		return new Bytes(length, new java.NativeArray(length));
 		#elseif python
 		return new Bytes(length, new python.Bytearray(length));
+		#elseif rb
+		return new Bytes(length, untyped (" " * length));
 		#else
 		var a = new Array();
 		for( i in 0...length )
@@ -519,6 +529,8 @@ class Bytes {
 		#elseif lua
 			var bytes = [for (c in 0...s.length) StringTools.fastCodeAt(s,c)];
 			return new Bytes(bytes.length, bytes);
+		#elseif rb
+		return new Bytes(untyped __dotcall__(s,"bytesize"), untyped s);
 		#else
 		var a = new Array();
 		// utf16-decode and utf8-encode
@@ -557,6 +569,8 @@ class Bytes {
 		return new Bytes(b.length, b);
 		#elseif cs
 		return new Bytes(b.Length,b);
+		#elseif rb
+		return new Bytes(untyped b.bytesize,b);
 		#else
 		return new Bytes(b.length,b);
 		#end
@@ -577,6 +591,8 @@ class Bytes {
 		return untyped b.unsafeGet(pos);
 		#elseif java
 		return untyped b[pos] & 0xFF;
+		#elseif rb
+		return untyped __dotcall__(b,"getbyte",pos);
 		#else
 		return b[pos];
 		#end
