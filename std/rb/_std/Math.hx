@@ -23,10 +23,11 @@
 //@:coreApi
 class Math
 {
-  //static var PI(default,null) : Float;
-  //static var NaN(default,null) : Float;
-  //static var NEGATIVE_INFINITY(default,null) : Float;
-  //static var POSITIVE_INFINITY(default,null) : Float;
+  public static var PI(default,null) : Float;
+
+  public static var NaN(default,null) : Float;
+  public static var NEGATIVE_INFINITY(default,null) : Float;
+  public static var POSITIVE_INFINITY(default,null) : Float;
 
   public static inline function abs(v:Float):Float {
     return untyped v.abs;
@@ -40,17 +41,33 @@ class Math
     return untyped [a,b].max;
   }
 
-  //static function sin(v:Float):Float;
-  //static function cos(v:Float):Float;
-  //static function atan2(y:Float,x:Float):Float;
-  //static function tan(v:Float):Float;
-  //static function exp(v:Float):Float;
+  public static inline function sin(v:Float):Float {
+    return untyped __dotcall__(Math,"sin",v);
+  }
+
+  public static inline function cos(v:Float):Float {
+    return untyped __dotcall__(Math,"cos",v);
+  }
+  
+  public static inline function atan2(y:Float,x:Float):Float {
+    return untyped __dotcall__(Math,"atan2",y,x);
+  }
+
+  public static inline function tan(v:Float):Float {
+    return untyped __dotcall__(Math,"tan",v);
+  }
+
+  public static inline function exp(v:Float):Float {
+    return untyped __dotcall__(Math,"exp",v);
+  }
   
   public static inline function log(v:Float):Float {
     return untyped __dotcall__(Math,"log",v);
   }
 
-  //static function sqrt(v:Float):Float;
+  public static inline function sqrt(v:Float):Float {
+    return untyped __dotcall__(Math,"sqrt",v);
+  }
 
   public static inline function round(v:Float):Int {
     return untyped v.round;
@@ -60,11 +77,24 @@ class Math
     return untyped v.floor;
   }
 
-  //static function ceil(v:Float):Int;
+  public static inline function ceil(v:Float):Int {
+    return untyped v.ceil;
+  }
+
   //static function atan(v:Float):Float;
-  //static function fround(v:Float):Float;
-  //static function ffloor(v:Float):Float;
-  //static function fceil(v:Float):Float;
+  
+  public static inline function fround(v:Float):Float {
+    return untyped v.round;
+  }
+
+  public static inline function ffloor(v:Float):Float {
+    return untyped v.floor;
+  }
+
+  public static inline function fceil(v:Float):Float {
+    return untyped v.ceil;
+  }
+
   //static function asin(v:Float):Float;
   //static function acos(v:Float):Float;
 
@@ -78,7 +108,9 @@ class Math
     return untyped __dotcall__(f,"finite?");
   }
 
-  //static function isNaN( f : Float ) : Bool;
+  public static inline function isNaN( f : Float ) : Bool {
+    return untyped __dotcall__(f,"nan?");
+  }
 }
 
 
