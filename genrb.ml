@@ -237,10 +237,16 @@ let open_block ctx =
 	ctx.tabs <- "  " ^ ctx.tabs;
 	(fun() -> ctx.tabs <- oldt)
 
+
 let parent e =
 	match e.eexpr with
 	| TParenthesis _ -> e
 	| _ -> mk (TParenthesis e) e.etype e.epos
+
+let deparent e =
+	match e.eexpr with
+	| TParenthesis e2 -> e2
+	| _ -> e
 
 let default_value tstr =
 	match tstr with
@@ -457,9 +463,7 @@ let rec gen_call ctx e el r =
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")";
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")";
+	        show_args ctx el;
 	| TLocal { v_name = "__is__" } , [e1;e2] ->
 		gen_value ctx e1;
 		spr ctx " is ";
@@ -487,9 +491,7 @@ let rec gen_call ctx e el r =
 	    gen_value ctx eo;	
 	    spr ctx ".";
 	    spr ctx code;
-	    spr ctx "(";
-	    concat ctx ", " (gen_value ctx) el;
-	    spr ctx ")";
+	    show_args ctx el;
 	| TLocal { v_name = "__pass_block__" }, [e0;e1;{ eexpr = TFunction _ } as e2] ->
 		gen_value ctx e0;
 		spr ctx ".";
@@ -533,9 +535,7 @@ let rec gen_call ctx e el r =
 	| TLocal { v_name = "__new__" }, e :: args ->
 		spr ctx "new ";
 		gen_value ctx e;
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) args;
-		spr ctx ")";
+	        show_args ctx args;
 	| TLocal { v_name = "__delete__" }, [e;f] ->
 		spr ctx "delete(";
 		gen_value ctx e;
@@ -565,9 +565,7 @@ let rec gen_call ctx e el r =
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ").call";
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")";
+	        show_args ctx el;
 	| TField (_, FStatic( { cl_path = (["flash"],"Lib") }, { cf_name = "as" })), [e1;e2] ->
 		gen_value ctx e1;
 		spr ctx " as ";
@@ -586,14 +584,16 @@ let rec gen_call ctx e el r =
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")";
-		spr ctx ".call(";
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")"
+		spr ctx ".call";
+	        show_args ctx el;
 	| _ ->
 		gen_value ctx e;
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")"
+	        show_args ctx el;
+
+and show_args ctx el =
+  if (List.length el)>0 then spr ctx "(";
+  concat ctx "," (gen_value ctx) el;
+  if (List.length el)>0 then spr ctx ")"
 
 and gen_value_op ctx e =
 	match e.eexpr with
@@ -735,14 +735,13 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ctx e =
 	| TBlock el ->
 	        if not preblocked then print ctx "begin";
 		let bend = open_block ctx in
-		let cb = (fun () -> ()) in
 		(match ctx.block_inits with None -> () | Some i -> i());
 		List.iter (fun e -> block_newline ctx; gen_expr ctx e) el;
 		bend();
-		newline ctx;
-		cb();
-		if not postblocked then 
+		if not postblocked then begin
+		  newline ctx;
 		  print ctx "%s" (if ctx.in_expression then "}" else "end");
+		end;
 	| TFunction f ->
 		let h = gen_function_header ctx None f [] e.epos true in
 		let old = ctx.in_static in
@@ -786,22 +785,22 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ctx e =
 		| (["haxe";"ds"],"StringMap"), [pt] -> print ctx "{}";
 		| (["haxe";"ds"],"IntMap"), [pt] -> print ctx "{}";
 		| _ -> 
-		    print ctx "%s.new(" (s_path ctx true c.cl_path e.epos);
-		    concat ctx "," (gen_value ctx) el;
-		    spr ctx ")";
+		    print ctx "%s.new" (s_path ctx true c.cl_path e.epos);
+		    show_args ctx el;
 		);
 	| TIf (cond,e,None) when (match e.eexpr with TBlock _ -> false | TIf _ -> false | _ -> true) ->
 		gen_expr ctx e;
-		spr ctx " if";
-		gen_value ctx (parent cond);
+		spr ctx " if ";
+		gen_value ctx (deparent cond);
 	| TIf (cond,e,eelse) ->
-		spr ctx "if";
-		gen_value ctx (parent cond);
+		spr ctx "if ";
+		gen_value ctx (deparent cond);
 		spr ctx " ";
 		gen_expr ~preblocked:true ~postblocked:true ctx (force_block e);
 		(match eelse with
 		| None ->
-		      spr ctx "end";
+		    newline ctx;
+		    spr ctx "end";
 		| Some e ->
 			newline ctx;
 			spr ctx "else ";
@@ -917,7 +916,7 @@ and gen_value ctx e =
 		let r = alloc_var (gen_local ctx "$r") e.etype in
 		ctx.in_value <- Some r;
 		if ctx.in_static then
-			print ctx "lambda{|| "
+			print ctx "lambda{ "
 		else
 			print ctx "lambda{|_this_| ";
 		(fun() ->
@@ -1215,9 +1214,11 @@ let generate_main ctx inits types com =
   if has_feature ctx "use.$iterator" then begin
     add_feature ctx "use.$bind";
     newline ctx;
-    print ctx "def _hx_iterator(o) return lambda{|| (o.class == Array) ? ::Rb::RubyIterator.new(o,nil) : ((o.respond_to? 'iterator') ? o.iterator : o)} end";
+    spr ctx "# some band-aids until we figure out a better translation for iterators";
     newline ctx;
-    print ctx "def _hx_call(o,k) ((o.respond_to? k) ? o.method(k).call : o[k].call) end";
+    spr ctx "def _hx_iterator(o) return lambda{ (o.class == Array) ? ::Rb::RubyIterator.new(o,nil) : ((o.respond_to? 'iterator') ? o.iterator : o)} end";
+    newline ctx;
+    spr ctx "def _hx_call(o,k) ((o.respond_to? k) ? o.method(k).call : o[k].call) end";
     newline ctx;
   end;
   List.iter (fun c ->
