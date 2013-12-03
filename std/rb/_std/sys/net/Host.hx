@@ -19,46 +19,37 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+package sys.net;
+
 @:coreApi
-extern class Array<T> {
+class Host {
 
-	var length(default,null) : Int;
+	private var _ip : String;
+	public var ip(default,null) : Int;
 
-	function new() : Void;
-	function concat( a : Array<T> ) : Array<T>;
-	function join( sep : String ) : String;
-	function pop() : Null<T>;
-	function push(x : T) : Int;
-	function reverse() : Void;
-	function shift() : Null<T>;
-  inline function slice( pos : Int, ?end : Int ) : Array<T> {
-    return untyped __dotcall__(this,"slice",pos,end-pos-1);
-  }
-
-  inline function sort( f : T -> T -> Int ) : Void {
-    untyped __pass_block__(this,untyped __js__("sort"),f);
-  }
-  inline function splice( pos : Int, len : Int ) : Array<T> {
-    return untyped __dotcall__(this,"slice!",pos,len);
-  }
-	function toString() : String;
-	function unshift( x : T ) : Void;
-
-  function insert( pos : Int, x : T ) : Void;
-
-	inline function remove( x : T ) : Bool {
-		return untyped HxOverrides.remove(this,x);
+	public function new( name : String ) : Void {
+		if(~/^(\d{1,3}\.){3}\d{1,3}$/.match(name)) {
+		  _ip = name;
+		} else {
+			_ip = untyped __call__('gethostbyname', name);
+			if(_ip == name) {
+				ip = 0;
+				return;
+			}
+		}
+		var p = _ip.split('.');
+		ip = untyped __call__('intval', __call__('sprintf', '%02X%02X%02X%02X', p[3], p[2], p[1], p[0]), 16);
 	}
 
-	inline function copy() : Array<T> {
-		return (untyped this).slice();
+	public function toString() : String {
+		return _ip;
 	}
 
-	function map<S>(f:T->S):Array<S>;
-	function filter(f:T->Bool):Array<T>;
-
-	@:runtime inline function iterator() : Iterator<T> {
-		return untyped HxOverrides.iter(this);
+	public function reverse() : String {
+		return untyped __call__('gethostbyaddress', _ip);
 	}
 
+	public static function localhost() : String {
+		return untyped __var__('_SERVER', 'HTTP_HOST');
+	}
 }

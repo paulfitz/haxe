@@ -36,6 +36,8 @@ package haxe.io;
 	typedef BytesData = cs.NativeArray<cs.StdTypes.UInt8>;
 #elseif python
 	typedef BytesData = python.lib.ByteArray;
+#elseif rb
+	typedef BytesData = rb.NativeString;
 #else
 	typedef BytesData = Array<Int>;
 #end

@@ -28,7 +28,9 @@ class Math
   //static var NEGATIVE_INFINITY(default,null) : Float;
   //static var POSITIVE_INFINITY(default,null) : Float;
 
-  //static function abs(v:Float):Float;
+  public static inline function abs(v:Float):Float {
+    return untyped v.abs;
+  }
 
   public static inline function min(a:Float,b:Float):Float {
     return untyped [a,b].min;
@@ -43,14 +45,21 @@ class Math
   //static function atan2(y:Float,x:Float):Float;
   //static function tan(v:Float):Float;
   //static function exp(v:Float):Float;
-  //static function log(v:Float):Float;
+  
+  public static inline function log(v:Float):Float {
+    return untyped __dotcall__(Math,"log",v);
+  }
+
   //static function sqrt(v:Float):Float;
 
   public static inline function round(v:Float):Int {
     return untyped v.round;
   }
 
-  //static function floor(v:Float):Int;
+  public static inline function floor(v:Float):Int {
+    return untyped v.floor;
+  }
+
   //static function ceil(v:Float):Int;
   //static function atan(v:Float):Float;
   //static function fround(v:Float):Float;
