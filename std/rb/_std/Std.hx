@@ -32,20 +32,20 @@ import rb.Boot;
 		return untyped __instanceof__(v, c) ? cast v : null;
 	}
 
-	public static function string( s : Dynamic ) : String {
-	  return untyped __js__("s.to_s");
+	public static inline function string( s : Dynamic ) : String {
+	  return untyped __dotcall__(s,"to_s");
 	}
 
 	public static inline function int( x : Float ) : Int {
 		return cast(x) | 0;
 	}
 
-	public static function parseInt( x : String ) : Null<Int> {
-	  return untyped __js__("x.to_i");
+	public static inline function parseInt( x : String ) : Null<Int> {
+	  return untyped __dotcall__(x,"to_i");
 	}
 
-	public static function parseFloat( x : String ) : Float {
-	  return untyped __js__("x.to_f");
+	public static inline function parseFloat( x : String ) : Float {
+	  return untyped __dotcall__(x,"to_f");
 	}
 
 	public static function random( x : Int ) : Int {
