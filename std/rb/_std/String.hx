@@ -37,11 +37,13 @@
 	function substring( startIndex : Int, ?endIndex : Int ) : String;
 
 	inline function charCodeAt( index : Int) : Null<Int> {
-		return untyped HxOverrides.cca(this, index);
+	  return untyped __dotcall__(__get__(this,index),"ord");
+	  //return untyped HxOverrides.cca(this, index);
 	}
 
 	inline function substr( pos : Int, ?len : Int ) : String {
-		return untyped HxOverrides.substr(this, pos, len);
+	  return untyped __get2__(this,pos,len);
+	  //return untyped HxOverrides.substr(this, pos, len);
 	}
 
   inline static function fromCharCode( code : Int ) : String {
