@@ -45,6 +45,11 @@ type context = {
 	mutable block_inits : (unit -> unit) option;
         mutable in_expression : bool;
         mutable in_block_consumer : bool;
+        mutable protected_mode : bool;
+        mutable newlined : bool;
+        mutable dirty_line : bool;
+        mutable field_names : (string,bool) Hashtbl.t;
+        mutable has_statics : bool;
 }
 
 let is_var_field f =
@@ -144,6 +149,14 @@ let s_ident m =
   else
     if Hashtbl.mem reserved n then "_" ^ n else n
 
+let s_ident_local ctx m =
+  (* not quite sure if collision is an issue; ruby local vars may be 
+     indistinguishable from a setter in certain cases, need to think
+     about this *)
+  (* if Hashtbl.mem ctx.field_names m then
+    s_ident "__" ^ m
+  else *)
+    s_ident m
 
 let rec is_string_type t =
 	match follow t with
@@ -188,6 +201,11 @@ let init infos path =
 		block_inits = None;
 	        in_expression = false;
 	        in_block_consumer = false;
+	        protected_mode = false;
+	        newlined = true;
+	        dirty_line = false;
+	        field_names = Hashtbl.create 0;
+	        has_statics = false;
 	}
 
 let close ctx =
@@ -200,20 +218,35 @@ let gen_local ctx l =
 	ctx.gen_uid <- ctx.gen_uid + 1;
 	if ctx.gen_uid = 1 then l else l ^ string_of_int ctx.gen_uid
 
-let spr ctx s = Buffer.add_string ctx.buf s
-let print ctx = Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
+let spr ctx s = 
+  ctx.newlined <- false;
+  ctx.dirty_line <- true;
+  Buffer.add_string ctx.buf s
+  
+let print ctx = 
+  ctx.newlined <- false;
+  ctx.dirty_line <- true;
+  Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
 
 let unsupported p = error "This expression cannot be generated to Ruby" p
 
 let newline ctx =
-	let rec loop p =
-		match Buffer.nth ctx.buf p with
-		| '}' | '{' | ':' | ';' -> print ctx "\n%s" ctx.tabs
-		| '\n' | '\t' -> loop (p - 1)
-		| _ -> print ctx "\n%s" ctx.tabs
-	in
-	loop (Buffer.length ctx.buf - 1)
-
+  if not ctx.newlined then
+    ctx.newlined <- not ctx.dirty_line;
+  let nl = ctx.newlined in
+  let rec loop p =
+    match Buffer.nth ctx.buf p with
+    | '}' | '{' | ':' | ';' -> print ctx "\n%s" ctx.tabs
+    | '\n' | '\t' -> loop (p - 1)
+    | _ -> print ctx "\n%s" ctx.tabs
+  in
+  loop (Buffer.length ctx.buf - 1);
+  ctx.newlined <- nl;
+  ctx.dirty_line <- false
+      
+let soft_newline ctx = 
+  if not ctx.newlined then newline ctx
+      
 let block_newline ctx = match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
 	| '}' -> print ctx "\n%s" ctx.tabs
 	| _ -> newline ctx
@@ -425,9 +458,14 @@ let gen_function_header ctx name f params p in_expression =
 	ctx.block_inits <- Some init;
 	let str_def = (if in_expression then (if ctx.in_block_consumer then "" else "lambda") else "def") in
 	let str_pre = (if in_expression then "{|" else "(") in
+	let str_pre0 = (if in_expression then "{" else " ") in
 	let str_post = (if in_expression then "|" else ")") in
+	if not in_expression then begin
+	  soft_newline ctx;
+	  soft_newline ctx;
+	end;
 	if ctx.constructor_block then
-	    print ctx "def initialize("
+	  print ctx "def initialize%s" (if (List.length f.tf_args)>0 then "(" else "")
 	else
 	  print ctx "%s%s%s%s" str_def (if ctx.in_static && not(in_expression) then (" " ^ (tweak_class_name (snd ctx.curclass.cl_path)) ^ ".") else " ") (match name with None -> "" | Some (n,meta) ->
 	    let rec loop = function
@@ -436,11 +474,11 @@ let gen_function_header ctx name f params p in_expression =
 	      | (Ast.Meta.Setter,[Ast.EConst (Ast.Ident i),_],_) :: _ -> "set " ^ i
 	      | _ :: l -> loop l
 	    in
-	    "" ^ loop meta) str_pre;
+	    "" ^ loop meta) (if (List.length f.tf_args)>0 then str_pre else str_pre0);
 	ctx.constructor_block <- false;
 	concat ctx "," (fun (v,c) ->
 		let tstr = type_str ctx v.v_type p in
-		print ctx "%s" (s_ident v.v_name);
+		print ctx "%s" (s_ident_local ctx v.v_name);
 		match c with
 		| None ->
 			if ctx.constructor_block then print ctx " = %s" (default_value tstr);
@@ -448,7 +486,7 @@ let gen_function_header ctx name f params p in_expression =
 			spr ctx " = ";
 			gen_constant ctx p c
 	) f.tf_args;
-	print ctx "%s" str_post;
+        if (List.length f.tf_args)>0 then print ctx "%s" str_post;
 	(fun () ->
 		ctx.in_value <- old;
 		ctx.local_types <- old_t;
@@ -456,7 +494,7 @@ let gen_function_header ctx name f params p in_expression =
 	        ctx.in_expression <- old_ie;
 	        ctx.in_block_consumer <- old_ibc;
 	)
-
+	  
 let rec gen_call ctx e el r =
 	match e.eexpr , el with
 	| TCall (x,_) , el ->
@@ -554,6 +592,17 @@ let rec gen_call ctx e el r =
 		spr ctx "[";
 		gen_value ctx k;
 		spr ctx "]";
+	| TLocal { v_name = "__get2__" }, [e;k1;k2] ->
+	    gen_value ctx e;
+	    spr ctx "[";
+	    gen_value ctx k1;
+	    spr ctx "..";
+	    (match k2.eexpr with
+	    | TConst TNull ->
+		spr ctx "-1";
+	    | _ ->
+		gen_value ctx k2);
+	    spr ctx "]";
 	| TLocal { v_name = "__unprotect__" }, [e] ->
 		gen_value ctx e
 	| TLocal { v_name = "__vector__" }, [e] ->
@@ -641,12 +690,12 @@ and gen_field_access ctx t s =
 	| _ ->
 		print ctx ".%s" (s_ident s)
 
-and gen_expr ?(preblocked=false) ?(postblocked=false) ctx e =
+and gen_expr ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e =
 	match e.eexpr with
 	| TConst c ->
 		gen_constant ctx e.epos c
 	| TLocal v ->
-		spr ctx (s_ident v.v_name)
+		spr ctx (s_ident_local ctx v.v_name)
 	| TArray ({ eexpr = TLocal { v_name = "__global__" } },{ eexpr = TConst (TString s) }) ->
 		let path = Ast.parse_path s in
 		spr ctx (s_path ctx false path e.epos)
@@ -766,7 +815,7 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ctx e =
 	| TVars vl ->
 		(* spr ctx "var "; *)
 		concat ctx ", " (fun (v,eo) ->
-			print ctx "%s" (s_ident v.v_name) (*type_str ctx v.v_type e.epos*);
+			print ctx "%s" (s_ident_local ctx v.v_name) (*type_str ctx v.v_type e.epos*);
 			match eo with
 			| None -> 
 			    spr ctx " = nil";
@@ -788,7 +837,7 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ctx e =
 		    print ctx "%s.new" (s_path ctx true c.cl_path e.epos);
 		    show_args ctx el;
 		);
-	| TIf (cond,e,None) when (match e.eexpr with TBlock _ -> false | TIf _ -> false | _ -> true) ->
+	| TIf (cond,e,None) when (match e.eexpr with TBlock _ -> false | TIf _ -> false | _ -> true) && shortenable ->
 		gen_expr ctx e;
 		spr ctx " if ";
 		gen_value ctx (deparent cond);
@@ -802,9 +851,15 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ctx e =
 		    newline ctx;
 		    spr ctx "end";
 		| Some e ->
+		    (match e with 
+		    | { eexpr = TIf _ } as e2 ->
+			newline ctx;
+			spr ctx "els";
+			gen_expr ~shortenable:false ctx e2;
+		    | _ ->
 			newline ctx;
 			spr ctx "else ";
-			gen_expr ~preblocked:true ctx (force_block e));
+			gen_expr ~preblocked:true ~shortenable:false ctx (force_block e)));
 	| TUnop (op,Ast.Postfix,e) when op = Ast.Increment ->
 		gen_value ctx e;
 		spr ctx "+=1"
@@ -913,7 +968,7 @@ and gen_value ctx e =
 	in
 	let value block =
 		let old = ctx.in_value in
-		let r = alloc_var (gen_local ctx "$r") e.etype in
+		let r = alloc_var (gen_local ctx "_r") e.etype in
 		ctx.in_value <- Some r;
 		if ctx.in_static then
 			print ctx "lambda{ "
@@ -1023,8 +1078,27 @@ and gen_value ctx e =
 let final m =
 	if Ast.Meta.has Ast.Meta.Final m then "final " else ""
 
+let set_public ctx public = 
+  if public && ctx.protected_mode then begin
+    soft_newline ctx;
+    soft_newline ctx;
+    spr ctx "public";
+    soft_newline ctx;
+    soft_newline ctx;
+  end;
+  if not public && not ctx.protected_mode then begin
+    soft_newline ctx;
+    soft_newline ctx;
+    if ctx.has_statics then
+	spr ctx "# protected # doesn't play well with static methods, which may be present"
+    else
+      spr ctx "protected";
+    soft_newline ctx;
+    soft_newline ctx;
+  end;
+  ctx.protected_mode <- not(public)
+
 let generate_field ctx static f =
-	newline ctx;
 	ctx.in_static <- static;
 	ctx.gen_uid <- 0;
 	List.iter (fun(m,pl,_) ->
@@ -1051,8 +1125,9 @@ let generate_field ctx static f =
 		| _ -> ()
 	) f.cf_meta;
 	let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static) || f.cf_name = "resolve" || Ast.Meta.has Ast.Meta.Public f.cf_meta in
-	let rights = (if static then "static " else "") ^ (if public then "public" else "# protected") in
+	(* let rights = (if static then "static " else "") ^ (if public then "public" else "# protected") in *)
 	let p = ctx.curclass.cl_pos in
+	set_public ctx public;
 	match f.cf_expr, f.cf_kind with
 	| Some { eexpr = TFunction fd }, Method (MethNormal | MethInline) ->
 	    (* print ctx "%s%s " rights (if static then "" else final f.cf_meta); *)
@@ -1066,13 +1141,14 @@ let generate_field ctx static f =
 					loop c
 		in
 		if not static then loop ctx.curclass;
+		soft_newline ctx;
 		let h = gen_function_header ctx (Some (s_ident f.cf_name, f.cf_meta)) fd f.cf_params p false in
 		let old_bc = ctx.in_block_consumer in
 	        ctx.in_block_consumer <- false;
 		gen_expr ~preblocked:true ctx fd.tf_expr;
 		ctx.in_block_consumer <- old_bc;
 		h();
-		newline ctx
+		soft_newline ctx;
 	| _ ->
 		let is_getset = (match f.cf_kind with Var { v_read = AccCall } | Var { v_write = AccCall } -> true | _ -> false) in
 		if ctx.curclass.cl_interface then
@@ -1084,6 +1160,7 @@ let generate_field ctx static f =
 					| (Ast.Meta.Setter,[Ast.EConst (Ast.String name),_],_) :: _ -> "set " ^ name
 					| _ :: l -> loop l
 				in
+				soft_newline ctx;
 				print ctx "def %s(" (loop f.cf_meta);
 				concat ctx "," (fun (arg,o,t) ->
 					let tstr = type_str ctx t p in
@@ -1118,29 +1195,41 @@ let generate_field ctx static f =
 			let v = (match f.cf_kind with Var v -> v | _ -> assert false) in
  			(match v.v_read with
 			| AccNormal | AccNo | AccNever ->
+				soft_newline ctx;
 				print ctx "def %s() @%s end" id id;
-				newline ctx
 			| AccCall ->
+				soft_newline ctx;
 				print ctx "def %s() %s end" id ("get_" ^ f.cf_name);
-				newline ctx
 			| _ -> ());
 			(match v.v_write with
 			| AccNormal | AccNo | AccNever ->
+				soft_newline ctx;
 				print ctx "def %s=(__v) @%s = __v end" id id;
-				newline ctx
 			| AccCall ->
+				soft_newline ctx;
 				print ctx "def %s=(__v) %s(__v); end" id ("set_" ^ f.cf_name);
-				newline ctx
 			| _ -> ());
 			(* print ctx "%sprotected var $%s : %s" (if static then "static " else "") (s_ident f.cf_name) (type_str ctx f.cf_type p); *)
 			gen_init()
 		end else begin
-			(* print ctx "%s var %s : %s" rights (s_ident f.cf_name) (type_str ctx f.cf_type p); *)
-		        print ctx "attr_accessor :%s" (s_ident f.cf_name);
-		        newline ctx;
-		        if rights <> "public" then
+		  (* print ctx "%s var %s : %s" rights (s_ident f.cf_name) (type_str ctx f.cf_type p); *)
+		  soft_newline ctx;
+		  if static then
+		    begin
+		      newline ctx;
+		      print ctx "class << self";
+		      newline ctx;
+		      print ctx "attr_accessor :%s" (s_ident f.cf_name);
+		      newline ctx;
+		      print ctx "end";
+		      newline ctx;
+		    end
+		  else
+		    print ctx "attr_accessor :%s" (s_ident f.cf_name)
+		  (* if rights <> "public" then begin
 			  print ctx "protected :%s" (s_ident f.cf_name);
 			  newline ctx;
+			end *)
 		end
 
 let rec define_getset ctx stat c =
@@ -1164,6 +1253,12 @@ let generate_class ctx c =
 	define_getset ctx true c;
 	define_getset ctx false c;
 	ctx.local_types <- List.map snd c.cl_types;
+        ctx.protected_mode <- false;
+        ctx.newlined <- true;
+	ctx.dirty_line <- false;
+	ctx.field_names <- Hashtbl.create 0;
+        ctx.has_statics <- ((List.length c.cl_ordered_statics)>0);
+	List.iter (fun e -> Hashtbl.replace ctx.field_names e.cf_name true) c.cl_ordered_fields;
 	let pack = open_block ctx in
 	print ctx "  %s%s%s %s " (final c.cl_meta) (match c.cl_dynamic with None -> "" | Some _ -> if c.cl_interface then "" else "dynamic ") (if c.cl_interface then "class" else "class") (tweak_class_name (snd c.cl_path));
 	(match c.cl_super with
