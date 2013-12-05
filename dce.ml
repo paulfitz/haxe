@@ -448,6 +448,7 @@ let run com main full =
 				let b = keep_field dce cf in
 				if not b then begin
 					if dce.debug then print_endline ("[DCE] Removed field " ^ (s_type_path c.cl_path) ^ "." ^ (cf.cf_name));
+				        c.cl_removed_statics <- PMap.add cf.cf_name cf c.cl_removed_statics;
 					c.cl_statics <- PMap.remove cf.cf_name c.cl_statics;
 				end;
 				b
@@ -456,6 +457,7 @@ let run com main full =
 				let b = keep_field dce cf in
 				if not b then begin
 					if dce.debug then print_endline ("[DCE] Removed field " ^ (s_type_path c.cl_path) ^ "." ^ (cf.cf_name));
+				        c.cl_removed_fields <- PMap.add cf.cf_name cf c.cl_removed_fields;
 					c.cl_fields <- PMap.remove cf.cf_name c.cl_fields;
 				end;
 				b
