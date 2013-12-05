@@ -21,7 +21,7 @@
  */
 package haxe.ds;
 
-@:coreApi class IntMap<T> implements Map.IMap<Int,T> {
+@:coreApi extern class IntMap<T> implements Map.IMap<Int,T> {
 
 	public function new() : Void {
 	}
@@ -49,13 +49,13 @@ package haxe.ds;
 	}
 
 	public inline function keys() : Iterator<Int> {
-	  return new rb.RubyIterator(untyped __dotcall__(this,"keys"),null);
+	  return new rb.RubyIterator(untyped __dotcall__(this,"keys"));
 	  //return new rb.RubyIterator(untyped __js__("@h.keys"),null);
 	}
 
 
 	public inline function iterator() : Iterator<T> {
-	  return new rb.RubyIterator(untyped __dotcall__(this,"keys"),this);
+	  return new rb.RubyIterator(untyped __dotcall__(this,"values"));
 	  //return new rb.RubyIterator(untyped __js__("@h.keys"),untyped __js__("@h"));
 	}
 

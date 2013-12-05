@@ -206,6 +206,9 @@ and tclass = {
 
 	mutable cl_build : unit -> unit;
 	mutable cl_restore : unit -> unit;
+
+	mutable cl_removed_fields : (string , tclass_field) PMap.t;
+	mutable cl_removed_statics : (string, tclass_field) PMap.t;
 }
 
 and tenum_field = {
@@ -374,6 +377,8 @@ let mk_class m path pos =
 		cl_overrides = [];
 		cl_build = (fun() -> ());
 		cl_restore = (fun() -> ());
+		cl_removed_fields = PMap.empty;
+		cl_removed_statics = PMap.empty;
 	}
 
 let module_extra file sign time kind =
