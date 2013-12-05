@@ -933,8 +933,9 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e 
 		gen_value ctx (parent e);
 		newline ctx;
 		List.iter (fun (el,e2) ->
-			List.iter (fun e ->
-				spr ctx "when ";
+		        spr ctx "when ";
+		        print ctx " args %d " (List.length el);
+			concat ctx "," (fun e ->
 				gen_value ctx e;
 			) el;
 			gen_block ctx e2;
