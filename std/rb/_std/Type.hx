@@ -147,10 +147,10 @@ enum ValueType {
 	  case "Float": return TFloat;
 	  case "Proc": return TFunction;
 	  case "NilClass": return TNull;
+	  case "Hash": return TObject;
 	  default:
-	    var c = rb.Boot.getClass(v);
-	    if( c != null )
-	      return TClass(c);
+	    if (untyped __dotcall__(v,"respond_to?","class"))
+	      return TClass(untyped __dotcall__(v,"class"));
 	    return TUnknown;
 	  }
 	}
@@ -174,15 +174,15 @@ enum ValueType {
 	}
 
 	public inline static function enumConstructor( e : EnumValue ) : String {
-		return untyped e[0];
+		return untyped e.tag;
 	}
 
 	public inline static function enumParameters( e : EnumValue ) : Array<Dynamic> {
-		return untyped e.slice(2);
+		return untyped e.params;
 	}
 
 	public inline static function enumIndex( e : EnumValue ) : Int {
-		return untyped e[1];
+		return untyped e.index;
 	}
 
 	public static function allEnums<T>( e : Enum<T> ) : Array<T> {
