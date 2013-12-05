@@ -26,12 +26,7 @@
 	}
 
 	public inline static function field( o : Dynamic, field : String ) : Dynamic untyped {
-		var v = null;
-		try {
-		  v = o[field.to_sym];
-		} catch( e : Dynamic ) {
-		}
-		return v;
+	  return o[field];
 	}
 
 	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped {

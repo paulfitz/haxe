@@ -88,7 +88,7 @@
 	}
 
 	public static inline function fastCodeAt( s : String, index : Int ) : Int {
-	  return untyped __dotcall__(__get__(s,index),"ord");
+	  return untyped __dotcall__(__paren__(__get__(s,index)||0),"ord");
 	}
 
 	public static inline function isEof( c : Int ) : Bool {

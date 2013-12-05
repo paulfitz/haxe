@@ -85,7 +85,7 @@ let req_path (p,s) = match p with [] -> camel_to_underscore(s) | _ -> String.con
 
 let protect name =
 	match name with
-	| "Error" | "Namespace" -> "_" ^ name
+	| "Namespace" -> "_" ^ name
 	| _ -> name
 
 let s_path ctx stat path p =
@@ -601,13 +601,18 @@ let rec gen_call ctx e el r =
 	    gen_value ctx e;
 	    spr ctx "[";
 	    gen_value ctx k1;
-	    spr ctx "..";
 	    (match k2.eexpr with
 	    | TConst TNull ->
+		spr ctx "..";
 		spr ctx "-1";
 	    | _ ->
+		spr ctx ",";
 		gen_value ctx k2);
 	    spr ctx "]";
+	| TLocal { v_name = "__paren__" }, [e] ->
+		spr ctx "(";
+		gen_value ctx e;
+		spr ctx ")";
 	| TLocal { v_name = "__unprotect__" }, [e] ->
 		gen_value ctx e
 	| TLocal { v_name = "__vector__" }, [e] ->
@@ -929,23 +934,27 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e 
 			  ) catchs;
 	| TPatMatch dt -> assert false
 	| TSwitch (e,cases,def) ->
-		spr ctx "case";
-		gen_value ctx (parent e);
-		newline ctx;
-		List.iter (fun (el,e2) ->
-		        spr ctx "when ";
-			concat ctx "," (fun e ->
-				gen_value ctx e;
-			) el;
-			gen_block ctx e2;
-		) cases;
-		(match def with
-		| None -> ()
-		| Some e ->
-			spr ctx "else";
-			gen_block ctx e;
-		);
-		spr ctx "end"
+	    softest_newline ctx;
+	    spr ctx "case";
+	    gen_value ctx (parent e);
+	    newline ctx;
+	    List.iter (fun (el,e2) ->
+	      softest_newline ctx;
+	      spr ctx "when ";
+	      concat ctx "," (fun e ->
+		gen_value ctx e;
+			     ) el;
+	      gen_expr ~preblocked:true ~postblocked:true ~shortenable:false ctx (force_block e2);
+		      ) cases;
+	    (match def with
+	    | None -> ()
+	    | Some e ->
+		softest_newline ctx;
+		spr ctx "else";
+		gen_expr ~preblocked:true ~postblocked:true ~shortenable:false ctx (force_block e);
+	    );
+	    softest_newline ctx;
+	    spr ctx "end";
 	| TCast (e1,None) ->
 		spr ctx "((";
 		gen_expr ctx e1;
@@ -1312,7 +1321,7 @@ let generate_class ctx c =
 	newline ctx;
 	spr ctx "end"
 
-let generate_main ctx inits types com =
+let generate_main ctx inits reqs com =
   ctx.curclass <- { null_class with cl_path = [],"index" };
   let pack = open_block ctx in
   spr ctx "  # Hello good evening and welcome to a translation from the original Haxe";
@@ -1334,8 +1343,8 @@ let generate_main ctx inits types com =
   newline ctx;
   List.iter (fun c ->
     newline ctx;
-    print ctx "require '%s'" (req_path c.cl_path);
-	    ) types;
+    print ctx "require '%s'" (req_path c);
+	    ) reqs;
 
   (match com.main with
   | None -> ()
@@ -1349,27 +1358,34 @@ let generate_enum ctx e =
 	ctx.local_types <- List.map snd e.e_types;
 	let pack = open_block ctx in
 	let ename = snd e.e_path in
-	print ctx "  public final class %s extends enum {" ename;
+	print ctx "  class %s" ename;
 	let cl = open_block ctx in
 	newline ctx;
-	print ctx "public static const __isenum : Boolean = true";
+	print ctx "ISENUM__ = true";
 	newline ctx;
-	print ctx "public function %s( t : String, index : int, p : Array = nil ) : void { this.tag = t; this.index = index; this.params = p; }" ename;
+	print ctx "attr_accessor :tag";
+	newline ctx;
+	print ctx "attr_accessor :index";
+	newline ctx;
+	print ctx "attr_accessor :params";
+	newline ctx;
+	print ctx "def initialize(t,index,p = nil ) @tag = t; @index = index; @params = p; end";
+	newline ctx;
 	PMap.iter (fun _ c ->
 		newline ctx;
 		match c.ef_type with
 		| TFun (args,_) ->
-			print ctx "public static function %s(" c.ef_name;
+			print ctx "def %s.%s(" ename (s_ident c.ef_name);
 			concat ctx ", " (fun (a,o,t) ->
-				print ctx "%s : %s" (s_ident a) (type_str ctx t c.ef_pos);
+				print ctx "%s" (s_ident a);
 				if o then spr ctx " = nil";
 			) args;
-			print ctx ") : %s {" ename;
-			print ctx " return new %s(\"%s\",%d,[" ename c.ef_name c.ef_index;
+			print ctx ") ";
+			print ctx " %s.new(\"%s\",%d,[" ename c.ef_name c.ef_index;
 			concat ctx "," (fun (a,_,_) -> spr ctx (s_ident a)) args;
-			print ctx "]); }";
+			print ctx "]) end";
 		| _ ->
-			print ctx "public static var %s : %s = new %s(\"%s\",%d)" c.ef_name ename ename c.ef_name c.ef_index;
+			print ctx "def %s.%s() %s.new(\"%s\",%d) end" ename (s_ident c.ef_name) ename c.ef_name c.ef_index;
 	) e.e_constrs;
 	newline ctx;
 	(match Codegen.build_metadata ctx.inf.com (TEnumDecl e) with
@@ -1378,13 +1394,13 @@ let generate_enum ctx e =
 		print ctx "public static var __meta__ : * = ";
 		gen_expr ctx e;
 		newline ctx);
-	print ctx "public static var __constructs__ : Array = [%s];" (String.concat "," (List.map (fun s -> "\"" ^ Ast.s_escape s ^ "\"") e.e_names));
+	print ctx "CONSTRUCTS__ = [%s]" (String.concat "," (List.map (fun s -> "\"" ^ Ast.s_escape s ^ "\"") e.e_names));
 	cl();
 	newline ctx;
-	print ctx "}";
+	print ctx "end";
 	pack();
 	newline ctx;
-	print ctx "}";
+	print ctx "end";
 	newline ctx
 
 let generate_base_enum ctx =
@@ -1434,7 +1450,7 @@ let generate com =
 			else
 				let ctx = init infos c.cl_path in
 				generate_class ctx c;
-				reqs := !reqs @ [c];
+				reqs := !reqs @ [c.cl_path];
 				close ctx
 		| TEnumDecl e ->
 			let pack,name = e.e_path in
@@ -1444,6 +1460,7 @@ let generate com =
 			else
 				let ctx = init infos e.e_path in
 				generate_enum ctx e;
+				reqs := !reqs @ [e.e_path];
 				close ctx
 		| TTypeDecl _ | TAbstractDecl _ ->
 			()
