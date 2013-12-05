@@ -46,9 +46,9 @@ extern class Array<T> {
 
   function insert( pos : Int, x : T ) : Void;
 
-	inline function remove( x : T ) : Bool {
-		return untyped HxOverrides.remove(this,x);
-	}
+  inline function remove( x : T ) : Bool {
+    return untyped __dotcall__(this,"delete",x);
+  }
 
 	inline function copy() : Array<T> {
 		return (untyped this).slice();
@@ -57,8 +57,7 @@ extern class Array<T> {
 	function map<S>(f:T->S):Array<S>;
 	function filter(f:T->Bool):Array<T>;
 
-	@:runtime inline function iterator() : Iterator<T> {
-		return untyped HxOverrides.iter(this);
-	}
-
+  @:runtime inline function iterator() : Iterator<T> {
+    return untyped __dotcall__(this,"each");
+  }
 }

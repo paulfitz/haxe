@@ -80,7 +80,7 @@ class Log {
 			}
 			else
 				untyped __trace(v,infos);
-		#elseif (cs || java || lua)
+		#elseif (cs || java || lua || rb)
 			var str:String = null;
 			if (infos != null) {
 				str = infos.fileName + ":" + infos.lineNumber + ": " + v;
@@ -97,6 +97,8 @@ class Log {
 			untyped __java__("java.lang.System.out.println(str)");
 			#elseif lua
 			untyped __define_feature__("use._hx_print",_hx_print(Std.string(str)));
+			#elseif rb
+			untyped __js__("puts str");
 			#end
 		#elseif (python)
 			var str:String = null;

@@ -28,7 +28,7 @@
 	public inline static function field( o : Dynamic, field : String ) : Dynamic untyped {
 		var v = null;
 		try {
-			v = o[field];
+		  v = o[field.to_sym];
 		} catch( e : Dynamic ) {
 		}
 		return v;
@@ -53,11 +53,11 @@
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {
-	  return untyped __dotcall__(o,"attributes");
+	  return untyped (__dotcall__(o,"respond_to?","attributes") ? __dotcall__(o,"attributes") : __dotcall__(o,"keys"));
 	}
 
 	public static function isFunction( f : Dynamic ) : Bool untyped {
-		return __js__("typeof(f)") == "function" && !(rb.Boot.isClass(f) || rb.Boot.isEnum(f));
+	  return __dotcall__(f,"respond_to?","call");
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int {

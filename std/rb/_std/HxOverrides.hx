@@ -59,6 +59,7 @@ class HxOverrides {
 		}
 	}
 
+  /*
 	static function cca( s : String, index : Int ) : Null<Int> {
 	  return untyped __js__("s[index].ord");
 	}
@@ -88,6 +89,7 @@ class HxOverrides {
 		}
 		return false;
 	}
+  */
 
 	static function iter<T>( a : Array<T> ) : Iterator<T> untyped {
 		return {

@@ -88,11 +88,11 @@
 	}
 
 	public static inline function fastCodeAt( s : String, index : Int ) : Int {
-		return untyped s.cca(index);
+	  return untyped __dotcall__(__get__(s,index),"ord");
 	}
 
 	public static inline function isEof( c : Int ) : Bool {
-		return untyped __physeq__(c, 0);
+		return c==0;
 	}
 
 }

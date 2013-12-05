@@ -21,7 +21,7 @@
  */
 package haxe.ds;
 
-@:coreApi class StringMap<T> implements Map.IMap<String,T> {
+@:coreApi extern class StringMap<T> implements Map.IMap<String,T> {
 
   public function new() : Void {
   }
@@ -49,11 +49,11 @@ package haxe.ds;
 	}
 
 	public inline function keys() : Iterator<String> {
-	  return new rb.RubyIterator(untyped __dotcall__(this,"keys"),null);
+	  return new rb.RubyIterator(untyped __dotcall__(this,"keys"));
 	}
 
 	public inline function iterator() : Iterator<T> {
-	  return new rb.RubyIterator(untyped __dotcall__(this,"keys"),this);
+	  return new rb.RubyIterator(untyped __dotcall__(this,"values"));
 	}
 
 	public inline function toString() : String {
