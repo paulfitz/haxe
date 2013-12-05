@@ -50,6 +50,7 @@ type context = {
         mutable dirty_line : bool;
         mutable field_names : (string,bool) Hashtbl.t;
         mutable has_statics : bool;
+        mutable has_inlines : bool;
 }
 
 let is_var_field f =
@@ -206,6 +207,7 @@ let init infos path =
 	        dirty_line = false;
 	        field_names = Hashtbl.create 0;
 	        has_statics = false;
+	        has_inlines = false;
 	}
 
 let close ctx =
@@ -246,10 +248,13 @@ let newline ctx =
       
 let soft_newline ctx = 
   if not ctx.newlined then newline ctx
+
+let softest_newline ctx = 
+  if ctx.dirty_line then newline ctx
       
 let block_newline ctx = match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
 	| '}' -> print ctx "\n%s" ctx.tabs
-	| _ -> newline ctx
+	| _ -> softest_newline ctx
 
 let force_block e =
   match e.eexpr with
@@ -386,7 +391,7 @@ let add_feature ctx = Common.add_feature ctx.inf.com
 
 let is_dynamic_iterator ctx e =
 	let check x =
-		has_feature ctx "HxOverrides.iter" && (match follow x.etype with TInst ({ cl_path = [],"Array" },_) | TAnon _ | TDynamic _ | TMono _ -> true | _ -> false)
+		(*has_feature ctx "HxOverrides.iter" &&*) (match follow x.etype with TInst ({ cl_path = [],"Array" },_) | TAnon _ | TDynamic _ | TMono _ -> true | _ -> false)
 	in
 	match e.eexpr with
 	| TField (x,f) when field_name f = "iterator" -> check x
@@ -721,9 +726,9 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e 
 		gen_value_op ctx e2; *)
 	| TField (x,f) when field_name f = "iterator" && is_dynamic_iterator ctx e ->
 	    add_feature ctx "use.$iterator";
-	    print ctx "_hx_iterator(";
+	    print ctx "Rb::RubyIterator.new(";
 	    gen_value ctx x;
-	    print ctx ").call";
+	    print ctx ")";
 	| TBinop (op,e1,e2) ->
 		gen_value_op ctx e1;
 		print ctx " %s " (Ast.s_binop op);
@@ -788,7 +793,7 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e 
 		List.iter (fun e -> block_newline ctx; gen_expr ctx e) el;
 		bend();
 		if not postblocked then begin
-		  newline ctx;
+		  softest_newline ctx;
 		  print ctx "%s" (if ctx.in_expression then "}" else "end");
 		end;
 	| TFunction f ->
@@ -902,10 +907,13 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e 
 		print ctx "%s = " tmp;
 		gen_value ctx it;
 		newline ctx;
-		print ctx "while( _hx_call(%s,:has_next) ) do %s = _hx_call(%s,:_next)" tmp (s_ident v.v_name) tmp;
+		print ctx "while(%s.has_next) do" tmp;
+		let bend = open_block ctx in
 		newline ctx;
-		gen_expr ~preblocked:true  ~postblocked:true ctx e;
-		newline ctx;
+		print ctx "%s = %s._next" (s_ident v.v_name) tmp;
+		bend();
+		gen_expr ~preblocked:true ~postblocked:true ctx (force_block e);
+		softest_newline ctx;
 		spr ctx "end";
 		handle_break();
 	| TTry (e,catchs) ->
@@ -1089,8 +1097,8 @@ let set_public ctx public =
   if not public && not ctx.protected_mode then begin
     soft_newline ctx;
     soft_newline ctx;
-    if ctx.has_statics then
-	spr ctx "# protected # doesn't play well with static methods, which may be present"
+    if ctx.has_statics || ctx.has_inlines then
+	spr ctx "# protected - in ruby this doesn't play well with static/inline methods"
     else
       spr ctx "protected";
     soft_newline ctx;
@@ -1248,6 +1256,13 @@ let rec define_getset ctx stat c =
 	| Some (c,_) when not stat -> define_getset ctx stat c
 	| _ -> ()
 
+let scan_for_inline ctx c k f =
+  match f.cf_expr, f.cf_kind with
+  | Some { eexpr = TFunction fd }, Method MethInline ->
+      ctx.has_inlines <- true
+  | _ ->
+      ()
+	  
 let generate_class ctx c =
 	ctx.curclass <- c;
 	define_getset ctx true c;
@@ -1258,7 +1273,12 @@ let generate_class ctx c =
 	ctx.dirty_line <- false;
 	ctx.field_names <- Hashtbl.create 0;
         ctx.has_statics <- ((List.length c.cl_ordered_statics)>0);
+        ctx.has_inlines <- false;
 	List.iter (fun e -> Hashtbl.replace ctx.field_names e.cf_name true) c.cl_ordered_fields;
+	PMap.iter (scan_for_inline ctx c) c.cl_fields;
+	PMap.iter (scan_for_inline ctx c) c.cl_statics;
+	PMap.iter (scan_for_inline ctx c) c.cl_removed_fields;
+	PMap.iter (scan_for_inline ctx c) c.cl_removed_statics;
 	let pack = open_block ctx in
 	print ctx "  %s%s%s %s " (final c.cl_meta) (match c.cl_dynamic with None -> "" | Some _ -> if c.cl_interface then "" else "dynamic ") (if c.cl_interface then "class" else "class") (tweak_class_name (snd c.cl_path));
 	(match c.cl_super with
@@ -1306,16 +1326,12 @@ let generate_main ctx inits types com =
   in
   List.iter chk_features inits;
   newline ctx;
-  if has_feature ctx "use.$iterator" then begin
-    add_feature ctx "use.$bind";
-    newline ctx;
-    spr ctx "# some band-aids until we figure out a better translation for iterators";
-    newline ctx;
-    spr ctx "def _hx_iterator(o) return lambda{ (o.class == Array) ? ::Rb::RubyIterator.new(o,nil) : ((o.respond_to? 'iterator') ? o.iterator : o)} end";
-    newline ctx;
-    spr ctx "def _hx_call(o,k) ((o.respond_to? k) ? o.method(k).call : o[k].call) end";
-    newline ctx;
-  end;
+  spr ctx "# some band-aids until we figure out a better translation for iterators";
+  newline ctx;
+  spr ctx "def _hx_iterator(o) return lambda{ (o.class == Array) ? ::Rb::RubyIterator.new(o) : ((o.respond_to? 'iterator') ? o.iterator : o)} end";
+  newline ctx;
+  spr ctx "def _hx_call(o,k) ((o.respond_to? k) ? o.method(k).call : o[k].call) end";
+  newline ctx;
   List.iter (fun c ->
     newline ctx;
     print ctx "require '%s'" (req_path c.cl_path);
