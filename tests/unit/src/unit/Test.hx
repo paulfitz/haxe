@@ -13,16 +13,6 @@ import cpp.link.StaticZlib;
 #end
 class Test {
 
-	static var count = 0;
-	static var reportInfos = null;
-	static var reportCount = 0;
-	static var checkCount = 0;
-  static var asyncWaits = new Array<haxe.PosInfos>();
-  static var asyncCache = new Array<Void -> Void>();
-	static var AMAX = 3;
-  static var timer : haxe.Timer;
-	static var success = true;
-
 	public function new() {
 	}
 

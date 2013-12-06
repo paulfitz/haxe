@@ -24,38 +24,47 @@
 	var r : Dynamic;
 
 	public function new( r : String, opt : String ) : Void {
-		opt = opt.split("u").join(""); // 'u' (utf8) depends on page encoding
-		this.r = untyped __new__("RegExp",r,opt);
+	  opt = opt.split("u").join(""); // 'u' (utf8) depends on page encoding
+	  this.r = untyped __new__(untyped __js__("RegExp"),r,opt);
 	}
 
 	public function match( s : String ) : Bool {
+	  return false;
+	  /*
 		if( r.global ) r.lastIndex = 0;
 		r.m = r.exec(s);
 		r.s = s;
 		return (r.m != null);
+	  */
 	}
 
 	public function matched( n : Int ) : String {
-		return if( r.m != null && n >= 0 && n < r.m.length ) r.m[n] else throw "EReg::matched";
+	  return "";
+	  //return if( r.m != null && n >= 0 && n < r.m.length ) r.m[n] else throw "EReg::matched";
 	}
 
 	public function matchedLeft() : String {
-		if( r.m == null ) throw "No string matched";
-		return r.s.substr(0,r.m.index);
+	  return "";
+	  //if( r.m == null ) throw "No string matched";
+	  //	return r.s.substr(0,r.m.index);
 	}
 
 	public function matchedRight() : String {
-		if( r.m == null ) throw "No string matched";
-		var sz = r.m.index+r.m[0].length;
-		return r.s.substr(sz,r.s.length-sz);
+	  return "";
+	  //if( r.m == null ) throw "No string matched";
+	  //	var sz = r.m.index+r.m[0].length;
+	  //	return r.s.substr(sz,r.s.length-sz);
 	}
 
 	public function matchedPos() : { pos : Int, len : Int } {
-		if( r.m == null ) throw "No string matched";
-		return { pos : r.m.index, len : r.m[0].length };
+	  return { pos : -1, len : -1 };
+	  //if( r.m == null ) throw "No string matched";
+	  //return { pos : r.m.index, len : r.m[0].length };
 	}
 
 	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
+	  return false;
+	  /*
 		return if (r.global) {
 			r.lastIndex = pos;
 			r.m = r.exec(len < 0 ? s : s.substr(0, pos + len));
@@ -73,19 +82,26 @@
 			}
 			b;
 		}
+	  */
 	}
 
 	public function split( s : String ) : Array<String> {
+	  return new Array<String>();
+	  /*
 		// we can't use directly s.split because it's ignoring the 'g' flag
 		var d = "#__delim__#";
 		return untyped s.replace(r,d).split(d);
+	  */
 	}
 
 	public function replace( s : String, by : String ) : String {
-		return untyped s.replace(r,by);
+	  return "";
+	  //return untyped s.replace(r,by);
 	}
 
 	public function map( s : String, f : EReg -> String ) : String {
+	  return "";
+	  /*
 		var offset = 0;
 		var buf = new StringBuf();
 		do {
@@ -108,5 +124,6 @@
 		if (!r.global && offset > 0 && offset < s.length)
 			buf.add(s.substr(offset));
 		return buf.toString();
+	  */
 	}
 }

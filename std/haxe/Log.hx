@@ -62,6 +62,8 @@ class Log {
 			}
 		#elseif js
 			untyped js.Boot.__trace(v,infos);
+		#elseif rb
+			untyped rb.Boot.__trace(v,infos);
 		#elseif php
 			if (infos!=null && infos.customParams!=null) {
 				var extra:String = "";

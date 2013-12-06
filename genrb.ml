@@ -647,6 +647,13 @@ let rec gen_call ctx e el r =
 	        show_args ctx el;
 	| _ ->
 		gen_value ctx e;
+	        if (match e.eexpr with
+		| TField (_,FStatic(_,f)) when (match f.cf_kind with | Var _ -> true | Method MethDynamic -> true | _ -> false) -> 
+		    true
+		| TField (_,_) -> false
+		| TFunction _ -> true
+		| TParenthesis _ -> true
+		| _ -> false) then spr ctx ".call";
 	        show_args ctx el;
 
 and show_args ctx el =
@@ -701,6 +708,8 @@ and gen_field_access ctx t s =
 		print ctx ".%s" (s_ident s)
 
 and gen_expr ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e =
+        let in_expression = ctx.in_expression in
+	ctx.in_expression <- false;
 	match e.eexpr with
 	| TConst c ->
 		gen_constant ctx e.epos c
@@ -773,7 +782,7 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e 
 		| None ->
 			spr ctx "return"
 		| Some e when (match follow e.etype with TEnum({ e_path = [],"Void" },[]) | TAbstract ({ a_path = [],"Void" },[]) -> true | _ -> false) ->
-			print ctx "{";
+			print ctx "begin";
 			let bend = open_block ctx in
 			newline ctx;
 			gen_value ctx e;
@@ -781,7 +790,7 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e 
 			spr ctx "return";
 			bend();
 			newline ctx;
-			print ctx "}";
+			print ctx "end";
 		| Some e ->
 			spr ctx "return ";
 			gen_value ctx e);
@@ -799,7 +808,7 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e 
 		bend();
 		if not postblocked then begin
 		  softest_newline ctx;
-		  print ctx "%s" (if ctx.in_expression then "}" else "end");
+		  print ctx "%s" (if in_expression then "}" else "end");
 		end;
 	| TFunction f ->
 		let h = gen_function_header ctx None f [] e.epos true in
@@ -903,9 +912,11 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e 
 		gen_value ctx (parent cond);
 		handle_break();
 	| TObjectDecl fields ->
+  	        (* if List.length fields > 0 then spr ctx "OpenStruct.new("; *)
 		spr ctx "{ ";
 		concat ctx ", " (fun (f,e) -> print ctx "%s: " (s_ident f); gen_value ctx e) fields;
-		spr ctx "}"
+		spr ctx "}";
+  	        (* if List.length fields > 0 then spr ctx ")"; *)
 	| TFor (v,it,e) ->
 		let handle_break = handle_break ctx e in
 		let tmp = gen_local ctx "_it" in
@@ -960,7 +971,8 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e 
 		gen_expr ctx e1;
 		print ctx ") as %s)" (type_str ctx e.etype e.epos);
 	| TCast (e1,Some t) ->
-		gen_expr ctx (Codegen.default_cast ctx.inf.com e1 t e.etype e.epos)
+		gen_expr ctx (Codegen.default_cast ctx.inf.com e1 t e.etype e.epos);
+	ctx.in_expression <- in_expression
 
 
 and gen_block ctx e =
@@ -1204,8 +1216,9 @@ let generate_field ctx static f =
 		let gen_init () = match f.cf_expr with
 			| None -> ()
 			| Some e ->
-				print ctx " = ";
-				gen_value ctx e
+			    newline ctx;
+			    print ctx "@%s = " (s_ident f.cf_name);
+			    gen_value ctx e
 		in
 		if is_getset then begin
 			let id = s_ident f.cf_name in
@@ -1239,14 +1252,17 @@ let generate_field ctx static f =
 		      print ctx "attr_accessor :%s" (s_ident f.cf_name);
 		      newline ctx;
 		      print ctx "end";
+		      gen_init();
 		      newline ctx;
 		    end
 		  else
-		    print ctx "attr_accessor :%s" (s_ident f.cf_name)
+		    begin
+		      print ctx "attr_accessor :%s" (s_ident f.cf_name);
 		  (* if rights <> "public" then begin
 			  print ctx "protected :%s" (s_ident f.cf_name);
 			  newline ctx;
 			end *)
+		    end
 		end
 
 let rec define_getset ctx stat c =
@@ -1335,20 +1351,17 @@ let generate_main ctx inits reqs com =
   in
   List.iter chk_features inits;
   newline ctx;
-  spr ctx "# some band-aids until we figure out a better translation for iterators";
+  (* spr ctx "# some band-aids until we figure out a better translation for iterators";
   newline ctx;
   spr ctx "def _hx_iterator(o) return lambda{ (o.class == Array) ? ::Rb::RubyIterator.new(o) : ((o.respond_to? 'iterator') ? o.iterator : o)} end";
   newline ctx;
-  spr ctx "def _hx_call(o,k) ((o.respond_to? k) ? o.method(k).call : o[k].call) end";
-  newline ctx;
+  spr ctx "def _hx_call(o,k) ((o.respond_to? k) ? o.method(k).call : o[k].call) end"; *)
   List.iter (fun c ->
     newline ctx;
     print ctx "require '%s'" (req_path c);
 	    ) reqs;
 
-  (match com.main with
-  | None -> ()
-  | Some e -> newline ctx; gen_expr ctx e);
+  List.iter (fun e -> newline ctx; gen_expr ctx e) inits;
   pack();
   newline ctx;
 
