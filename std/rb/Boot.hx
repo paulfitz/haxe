@@ -27,24 +27,12 @@ class Boot {
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
 	}
 
-	private static function __trace(v,i : haxe.PosInfos) {
-		untyped {
-			var msg = if( i != null ) i.fileName+":"+i.lineNumber+": " else "";
-			#if jsfl
-			msg += __string_rec(v,"");
-			fl.trace(msg);
-			#else
-			msg += __string_rec(v, "");
-			if( i != null && i.customParams != null )
-				for( v in i.customParams )
-					msg += "," + __string_rec(v, "");
-			var d;
-			if( __js__("typeof")(document) != "undefined" && (d = document.getElementById("haxe:trace")) != null )
-				d.innerHTML += __unhtml(msg)+"<br/>";
-			else if( __js__("typeof console") != "undefined" && __js__("console").log != null )
-				__js__("console").log(msg);
-			#end
-		}
+	private static function __trace(v,i) {
+	  if (i!=null) {
+	    untyped __js__("puts \"#{v} #{i.inspect}\"");
+	  } else {
+	    untyped __js__("puts v");
+	  }
 	}
 
 	private static function __clear_trace() {
@@ -159,37 +147,24 @@ class Boot {
 		return __interfLoop(cc.__super__,cl);
 	}
 
-	@:ifFeature("typed_catch") private static function __instanceof(o : Dynamic,cl : Dynamic) {
+	public static function __instanceof(o : Dynamic,cl : Dynamic) {
 	        return false;
 		if( cl == null )
 			return false;
 		switch( cl ) {
 		case Int:
-			return (untyped __js__("(o|0) === o"));
+		  return (untyped __js__("o.is_a? Fixnum"));
 		case Float:
-			return (untyped __js__("typeof"))(o) == "number";
+		  return (untyped __js__("o.is_a? Float"));
 		case Bool:
-			return (untyped __js__("typeof"))(o) == "boolean";
+		  return (untyped __js__("((o.is_a? TrueClass)||(o.is_a? FalseClass))"));
 		case String:
-			return (untyped __js__("typeof"))(o) == "string";
+		  return (untyped __js__("o.is_a? String"));
 		case Dynamic:
-			return true;
+		  return true;
 		default:
-			if( o != null ) {
-				// Check if o is an instance of a Haxe class
-				if( (untyped __js__("typeof"))(cl) == "function" ) {
-					if( untyped __js__("o instanceof cl") ) {
-						if( cl == Array )
-							return (o.__enum__ == null);
-						return true;
-					}
-					if( __interfLoop(getClass(o),cl) )
-						return true;
-				}
-			} else {
-				return false;
-			}
-			return o.__enum__ == cl;
+		  if( o == null ) return false;
+		  return untyped __dotcall__(o,"is_a?",cl);
 		}
 	}
 
