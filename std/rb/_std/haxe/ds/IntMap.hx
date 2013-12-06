@@ -21,7 +21,7 @@
  */
 package haxe.ds;
 
-@:coreApi extern class IntMap<T> implements Map.IMap<Int,T> {
+@:coreApi class IntMap<T> implements Map.IMap<Int,T> {
 
 	public function new() : Void {
 	}
