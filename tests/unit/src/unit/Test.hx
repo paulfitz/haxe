@@ -7,16 +7,6 @@ package unit;
 #end
 class Test #if swf_mark implements mt.Protect #end {
 
-	static var count = 0;
-	static var reportInfos = null;
-	static var reportCount = 0;
-	static var checkCount = 0;
-  static var asyncWaits = new Array<haxe.PosInfos>();
-  static var asyncCache = new Array<Void -> Void>();
-	static var AMAX = 3;
-  static var timer : haxe.Timer;
-	static var success = true;
-
 	public function new() {
 	}
 
@@ -166,6 +156,15 @@ class Test #if swf_mark implements mt.Protect #end {
 		haxe.Log.trace(msg,pos);
 	}
 
+	static var count = 0;
+	static var reportInfos = null;
+	static var reportCount = 0;
+	static var checkCount = 0;
+	static var asyncWaits = new Array<haxe.PosInfos>();
+	static var asyncCache = new Array<Void -> Void>();
+	static var AMAX = 3;
+	static var timer : haxe.Timer;
+	static var success = true;
 
 	dynamic static function report( msg : String, ?pos : haxe.PosInfos ) {
 		if( reportInfos != null ) {
@@ -241,8 +240,6 @@ class Test #if swf_mark implements mt.Protect #end {
 			php.Web.setHeader("Content-Type","text/plain");
 		#end
 		resetTimer();
-	}
-		/*
 		#if !macro
 		trace("Generated at: " + TestType.getCompilationDate());
 		#end
@@ -319,8 +316,6 @@ class Test #if swf_mark implements mt.Protect #end {
 		#end
 		TestIssues.addIssueClasses();
 		var current = null;
-
-
 		#if (!fail_eager)
 		try
 		#end
@@ -367,7 +362,5 @@ class Test #if swf_mark implements mt.Protect #end {
 		Sys.exit(success ? 0 : 1);
 		#end
 	}
-
-  */
 
 }

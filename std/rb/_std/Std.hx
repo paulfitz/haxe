@@ -24,9 +24,9 @@ import rb.Boot;
 @:keepInit
 @:coreApi class Std {
 
-	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {
-		return untyped rb.Boot.__instanceof(v,t);
-	}
+  public static function is( v : Dynamic, t : Dynamic ) : Bool {
+    return untyped rb.Boot.__instanceof(v,t);
+  }
 	
 	public static inline function instance<T>( v : { }, c : Class<T> ) : T {
 		return untyped __instanceof__(v, c) ? cast v : null;
@@ -53,57 +53,5 @@ import rb.Boot;
 	}
 
 	static function __init__() : Void untyped {
-		__feature__("rb.Boot.getClass",String.prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["String"] = String,String));
-		__feature__("rb.Boot.isClass",String.__name__ = __feature__("Type.getClassName",["String"],true));
-		__feature__("rb.Boot.getClass",Array.prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["Array"] = Array,Array));
-		__feature__("rb.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",["Array"],true));
-		__feature__("Date.*", {
-			__feature__("rb.Boot.getClass",__js__('Date').prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["Date"] = __js__('Date'),__js__('Date')));
-			__feature__("rb.Boot.isClass",__js__('Date').__name__ = ["Date"]);
-		});
-		__feature__("Int.*",{
-			var Int = __feature__("Type.resolveClass", $hxClasses["Int"] = { __name__ : ["Int"] }, { __name__ : ["Int"] });
-		});
-		__feature__("Dynamic.*",{
-			var Dynamic = __feature__("Type.resolveClass", $hxClasses["Dynamic"] = { __name__ : ["Dynamic"] }, { __name__ : ["Dynamic"] });
-		});
-		__feature__("Float.*",{
-			var Float = __feature__("Type.resolveClass", $hxClasses["Float"] = __js__("Number"), __js__("Number"));
-			Float.__name__ = ["Float"];
-		});
-		__feature__("Bool.*",{
-			var Bool = __feature__("Type.resolveEnum",$hxClasses["Bool"] = __js__("Boolean"), __js__("Boolean"));
-			Bool.__ename__ = ["Bool"];
-		});
-		__feature__("Class.*",{
-			var Class = __feature__("Type.resolveClass", $hxClasses["Class"] = { __name__ : ["Class"] }, { __name__ : ["Class"] });
-		});
-		__feature__("Enum.*",{
-			var Enum = {};
-		});
-		__feature__("Void.*",{
-			var Void = __feature__("Type.resolveEnum", $hxClasses["Void"] = { __ename__ : ["Void"] }, { __ename__ : ["Void"] });
-		});
-		__feature__("Array.map",
-			if( Array.prototype.map == null )
-				Array.prototype.map = function(f) {
-					var a = [];
-					for( i in 0...__this__.length )
-						a[i] = f(__this__[i]);
-					return a;
-				}
-		);
-		__feature__("Array.filter",
-			if( Array.prototype.filter == null )
-				Array.prototype.filter = function(f) {
-					var a = [];
-					for( i in 0...__this__.length ) {
-						var e = __this__[i];
-						if( f(e) ) a.push(e);
-					}
-					return a;
-				}
-		);
 	}
-
 }
