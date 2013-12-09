@@ -24,78 +24,54 @@ package haxe.ds;
 
 @:coreApi
 class ObjectMap<K:{ }, V> implements Map.IMap<K,V> {
-	
-	static var count = 0;
-	
-	static inline function assignId(obj: { } ):Int {
-		return untyped obj.__id__ = ++count;
-	}
-	
-	static inline function getId(obj: { } ):Int {
-		return untyped obj.__id__;
-	}
-	
-	var h : { };
-	
+	private var __Internal : IntMap<V>;
+	private var __KeyRefs : IntMap<K>;
+
 	public function new() : Void {
-		h = { };
-		untyped h.__keys__ = { };
+		__Internal = new IntMap<V>();
+		__KeyRefs = new IntMap<K>();
 	}
-	
-	public function set(key:K, value:V):Void untyped {
-		var id = key.__id__ != null ? key.__id__ : assignId(key);
-		h[id] = value;
-		h.__keys__[id] = key;
+
+	public function set( key : K, value : V ) : Void {
+	  var id = untyped __dotcall__(key,"object_id");
+	  __Internal.set( id, value );
+	  __KeyRefs.set( id, key );
 	}
-	
-	public inline function get(key:K):Null<V> {
-		return untyped h[getId(key)];
+
+	public function get( key : K ) : Null<V> {
+	  return __Internal.get(untyped __dotcall__(key,"object_id"));
 	}
-	
-	public inline function exists(key:K):Bool {
-		return untyped h.hasOwnProperty(getId(key));
+
+	public inline function exists( key : K ) : Bool {
+	  return __Internal.exists(untyped __dotcall__(key,"object_id"));
 	}
-	
+
 	public function remove( key : K ) : Bool {
-		var id = getId(key);
-		if ( untyped !h.hasOwnProperty(id) ) return false;
-		untyped  __js__("delete")(h[id]);
-		untyped  __js__("delete")(h.__keys__[id]);
-		return true;
+	  var id = untyped __dotcall__(key,"object_id");
+	  __Internal.remove(id);
+	  return __KeyRefs.remove(id);
 	}
-	
+
 	public function keys() : Iterator<K> {
-		var a = [];
-		untyped {
-			__js__("for( var key in this.h.__keys__ ) {");
-				if( h.hasOwnProperty(key) )
-					a.push(h.__keys__[key]);
-			__js__("}");
-		}
-		return a.iterator();
+	  return __KeyRefs.iterator();
 	}
-	
+
 	public function iterator() : Iterator<V> {
-		return untyped {
-			ref : h,
-			it : keys(),
-			hasNext : function() { return __this__.it.hasNext(); },
-			next : function() { var i = __this__.it.next(); return __this__.ref[getId(i)]; }
-		};
+	  return __Internal.iterator();
 	}
-	
+
 	public function toString() : String {
-		var s = new StringBuf();
-		s.add("{");
-		var it = keys();
-		for( i in it ) {
-			s.add(Std.string(i));
-			s.add(" => ");
-			s.add(Std.string(get(i)));
-			if( it.hasNext() )
-				s.add(", ");
-		}
-		s.add("}");
-		return s.toString();
+	  var s = new StringBuf();
+	  s.add("{");
+	  var it = __Internal.keys();
+	  for( i in it ) {
+	    s.add(Std.string(__KeyRefs.get(i)));
+	    s.add(" => ");
+	    s.add(Std.string(__Internal.get(i)));
+	    if( it.hasNext() )
+	      s.add(", ");
+	  }
+	  s.add("}");
+	  return s.toString();
 	}
 }
