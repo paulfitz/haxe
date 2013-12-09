@@ -181,7 +181,7 @@ class Resource {
 		content = null;
 		#elseif as3
 		null;
-		#elseif (java || cs)
+		#elseif (java || cs || rb)
 		//do nothing
 		#elseif python
 		content = untyped _hx_resources__();
