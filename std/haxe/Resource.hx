@@ -148,7 +148,7 @@ class Resource {
 		content = null;
 		#elseif as3
 		null;
-		#elseif (java || cs)
+		#elseif (java || cs || rb)
 		//do nothing
 		#else
 		content = untyped __resources__();

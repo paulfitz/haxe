@@ -25,7 +25,7 @@
 
 	public function new( r : String, opt : String ) : Void {
 	  opt = opt.split("u").join(""); // 'u' (utf8) depends on page encoding
-	  this.r = untyped __new__(untyped __js__("RegExp"),r,opt);
+	  this.r = untyped __new__(untyped __js__("Regexp"),r,opt);
 	}
 
 	public function match( s : String ) : Bool {
