@@ -23,11 +23,29 @@
 //@:coreApi
 class Math
 {
-  public static var PI(default,null) : Float;
+  public static var PI(get_PI,null) : Float;
+  
+  public static inline function get_PI() : Float {
+    return untyped __dotcall__(Math,"PI");
+  }
 
-  public static var NaN(default,null) : Float;
-  public static var NEGATIVE_INFINITY(default,null) : Float;
-  public static var POSITIVE_INFINITY(default,null) : Float;
+  public static var NaN(get_NaN,null) : Float;
+
+  public static inline function get_NaN() : Float {
+    return untyped __dotcall__(Math,"NAN");
+  }
+
+  public static var NEGATIVE_INFINITY(get_NEGATIVE_INFINITY,null) : Float;
+
+  public static inline function get_NEGATIVE_INFINITY() : Float {
+    return - untyped __dotcall__(Math,"INFINITY");
+  }
+
+  public static var POSITIVE_INFINITY(get_POSITIVE_INFINITY,null) : Float;
+
+  public static inline function get_POSITIVE_INFINITY() : Float {
+    return untyped __dotcall__(Math,"INFINITY");
+  }
 
   public static inline function abs(v:Float):Float {
     return untyped v.abs;

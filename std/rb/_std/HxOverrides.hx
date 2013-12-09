@@ -41,10 +41,10 @@ class HxOverrides {
 		case 8: // hh:mm:ss
 			var k = s.split(":");
 			var d : Date = untyped __new__(Date);
-			untyped d["setTime"](0);
-			untyped d["setUTCHours"](k[0]);
-			untyped d["setUTCMinutes"](k[1]);
-			untyped d["setUTCSeconds"](k[2]);
+			untyped d["setTime"].call(0);
+			untyped d["setUTCHours"].call(k[0]);
+			untyped d["setUTCMinutes"].call(k[1]);
+			untyped d["setUTCSeconds"].call(k[2]);
 			return d;
 		case 10: // YYYY-MM-DD
 			var k = s.split("-");
@@ -105,6 +105,7 @@ class HxOverrides {
 	}
 
 	static function __init__() untyped {
+	  /*
 		__feature__('HxOverrides.remove',
 			if( Array.prototype.indexOf ) __js__('HxOverrides').remove = function(a,o) {
 				var i = a.indexOf(o);
@@ -116,6 +117,7 @@ class HxOverrides {
 		#if mt
 		if( String.prototype.cca == null ) String.prototype.cca = String.prototype.charCodeAt;
 		#end
+	  */
 	}
 
 }
