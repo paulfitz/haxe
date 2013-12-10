@@ -510,6 +510,9 @@ let rec gen_call ctx e el r =
 	    spr ctx ".";
 	    spr ctx code;
 	    show_args ctx el;
+	| TLocal { v_name = "__call__" }, { eexpr = TConst (TString code) } :: el ->
+	    spr ctx code;
+	    show_args ctx el;
 	| TLocal { v_name = "__pass_block__" }, [e0;e1;{ eexpr = TFunction _ } as e2] ->
 		gen_value ctx e0;
 		spr ctx ".";
@@ -625,6 +628,7 @@ let rec gen_call ctx e el r =
 		| TFunction _ -> true
 		| TArray _ -> true
 		| TParenthesis _ -> true
+		| TConst TSuper -> false
 		| _ -> true) then spr ctx ".call";
 	        show_args ctx el;
 
@@ -741,12 +745,16 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e 
 		print ctx ".params[%i]" i;
 	| TField ({ eexpr = TConst (TThis) },s) when is_var_field s ->
 	    spr ctx "@";
-	    spr ctx (field_name s)
+	    spr ctx (s_ident (field_name s))
+	| TField ({ eexpr = TTypeExpr t},s) when (ctx.curclass.cl_path = (t_path t)) && (is_var_field s) ->
+	    spr ctx "@";
+	    spr ctx (s_ident (field_name s))
+	      (* gen_field_access ctx e.etype (field_name s) *)
 	| TField (e,s) ->
    		gen_value ctx e;
 		gen_field_access ctx e.etype (field_name s)
 	| TTypeExpr t ->
-		spr ctx (s_path ctx true (t_path t) e.epos)
+	    spr ctx (s_path ctx true (t_path t) e.epos)
 	| TParenthesis e ->
 		spr ctx "(";
 		gen_value ctx e;
@@ -1135,6 +1143,7 @@ let generate_field ctx static f =
 	) f.cf_meta;
 	let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static) || f.cf_name = "resolve" || Ast.Meta.has Ast.Meta.Public f.cf_meta in
 	(* let rights = (if static then "static " else "") ^ (if public then "public" else "# protected") in *)
+	let static_prefix = (if static then "self." else "") in
 	let p = ctx.curclass.cl_pos in
 	set_public ctx public;
 	match f.cf_expr, f.cf_kind with
@@ -1206,18 +1215,18 @@ let generate_field ctx static f =
  			(match v.v_read with
 			| AccNormal | AccNo | AccNever ->
 				soft_newline ctx;
-				print ctx "def %s() @%s end" id id;
+				print ctx "def %s%s() @%s end" static_prefix id id;
 			| AccCall ->
 				soft_newline ctx;
-				print ctx "def %s() %s end" id ("get_" ^ (s_ident f.cf_name));
+				print ctx "def %s%s() %s end" static_prefix id ("get_" ^ (s_ident f.cf_name));
 			| _ -> ());
 			(match v.v_write with
 			| AccNormal | AccNo | AccNever ->
 				soft_newline ctx;
-				print ctx "def %s=(__v) @%s = __v end" id id;
+				print ctx "def %s%s=(__v) @%s = __v end" static_prefix id id;
 			| AccCall ->
 				soft_newline ctx;
-				print ctx "def %s=(__v) %s(__v); end" id ("set_" ^ (s_ident f.cf_name));
+				print ctx "def %s%s=(__v) %s(__v); end" static_prefix id ("set_" ^ (s_ident f.cf_name));
 			| _ -> ());
 			(* print ctx "%sprotected var $%s : %s" (if static then "static " else "") (s_ident f.cf_name) (type_str ctx f.cf_type p); *)
 			gen_init()
@@ -1442,8 +1451,6 @@ let generate com =
 				()
 			else
 				let ctx = init infos c.cl_path in
-				print_string ((snd c.cl_path) ^ " ... ");
-				print_string ((String.concat "^" (fst c.cl_path)) ^ "\n");
 				if ((snd c.cl_path) = "Math") && ((List.length (fst c.cl_path)) == 0) then begin
 				  spr ctx "# This space left blank\n";
 				  spr ctx "end\n";
