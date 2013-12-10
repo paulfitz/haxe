@@ -37,7 +37,7 @@
 	function substring( startIndex : Int, ?endIndex : Int ) : String;
 
 	inline function charCodeAt( index : Int) : Null<Int> {
-	  return untyped __dotcall__(__paren__(__get__(this,index)||0),"ord");
+	  return untyped __rescue__(__dotcall__(__get__(this,index),"ord"),null);
 	  //return untyped HxOverrides.cca(this, index);
 	}
 
