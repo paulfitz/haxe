@@ -25,8 +25,14 @@
 	  return untyped __dotcall__(o,"respond_to?",field);
 	}
 
-	public inline static function field( o : Dynamic, field : String ) : Dynamic untyped {
-	  return o[field];
+	public static function field( o : Dynamic, field : String ) : Dynamic untyped {
+	  //return untyped o.method(field);
+	  //return field;
+	  try {
+	    return o[field];
+	  } catch (e : Dynamic) {
+	    return field;
+	  }
 	}
 
 	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
@@ -43,8 +49,9 @@
 		if( o.__properties__ && (tmp=o.__properties__["set_"+field]) ) o[tmp](value) else o[field] = __define_feature__("Reflect.setProperty",value);
 	}
 
-	public inline static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
-		return func.apply(o,args);
+	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
+	  //return func.apply(o,args);
+	  return untyped __dotcall__(__dotcall__(o,"method",func),"call",__js__("*args"));
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {
