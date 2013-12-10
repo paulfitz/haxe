@@ -68,6 +68,16 @@ let is_special_compare e1 e2 =
 	| TInst ({ cl_path = [],"Xml" } as c,_) , _ | _ , TInst ({ cl_path = [],"Xml" } as c,_) -> Some c
 	| _ -> None
 
+let is_known_nonzero e = 
+  match e.eexpr with
+  | TConst(TInt i) -> (Int32.compare i Int32.zero <> 0)
+  | _ -> false
+
+let is_known_positive e = 
+  match e.eexpr with
+  | TConst(TInt i) -> (Int32.compare i Int32.zero >= 0)
+  | _ -> false
+
 let tweak_class_name n =
   if (n.[0] == '_') then ("X" ^ (String.capitalize n))  else (String.capitalize n) 
 
@@ -506,10 +516,16 @@ let rec gen_call ctx e el r =
 		spr ctx "typeof ";
 		gen_value ctx e;
 	| TLocal { v_name = "__dotcall__" }, eo :: { eexpr = TConst (TString code) } :: el ->
-	    gen_value ctx eo;	
+	    gen_value_nest ctx eo;	
 	    spr ctx ".";
 	    spr ctx code;
 	    show_args ctx el;
+	| TLocal { v_name = "__rescue__" }, [e1;e2] ->
+	    spr ctx "(";
+	    gen_value ctx e1;	
+	    spr ctx " rescue ";
+	    gen_value ctx e2;	
+	    spr ctx ")";
 	| TLocal { v_name = "__call__" }, { eexpr = TConst (TString code) } :: el ->
 	    spr ctx code;
 	    show_args ctx el;
@@ -646,6 +662,28 @@ and gen_value_op ctx e =
 	| _ ->
 		gen_value ctx e
 
+and gen_value_op_string ctx e =
+  if not(is_string_expr e) then begin
+    (match e.eexpr with
+    | TBinop (op,_,_) ->
+	spr ctx "(";
+	gen_value ctx e;
+	spr ctx ")";
+    | _ ->
+	gen_value ctx e);
+    spr ctx ".to_s";
+  end else
+    gen_value_op ctx e
+
+and gen_value_nest ctx e =
+	match e.eexpr with
+	| TBinop (op,_,_) ->
+		spr ctx "(";
+		gen_value ctx e;
+		spr ctx ")";
+	| _ ->
+		gen_value ctx e
+
 and gen_field_access ctx t s =
 	let field c =
 		match fst c.cl_path, snd c.cl_path, s with
@@ -683,7 +721,7 @@ and gen_field_access ctx t s =
 	| _ ->
 		print ctx ".%s" (s_ident s)
 
-and gen_expr ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e =
+and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e =
         let in_expression = ctx.in_expression in
 	ctx.in_expression <- false;
 	(match e.eexpr with
@@ -699,15 +737,32 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e 
 		spr ctx "[";
 		gen_value ctx e2;
 		spr ctx "]";
+	| TBinop (Ast.OpMod,e1,e2) when is_known_positive(e1) ->
+	    gen_value ctx e1;
+	    spr ctx " % ";
+	    gen_value ctx e2;
+	| TBinop (Ast.OpMod,e1,e2) when is_known_nonzero(e2) ->
+	    gen_value_nest ctx e1;
+	    spr ctx ".remainder(";
+	    gen_value ctx e2;
+	    spr ctx ")";
+	| TBinop (Ast.OpMod,e1,e2) ->
+	    spr ctx "(";
+	    gen_value_nest ctx e1;
+	    spr ctx ".remainder(";
+	    gen_value ctx e2;
+	    spr ctx ") rescue Float::NAN)";
+	| TBinop (Ast.OpAssignOp(Ast.OpMod),e1,e2) ->
+	    gen_value ctx e1;
+	    spr ctx " = ";
+	    gen_expr ctx (mk (TBinop (Ast.OpMod, e1, e2)) e1.etype e1.epos);
 	| TBinop (Ast.OpEq,e1,e2) when (match is_special_compare e1 e2 with Some c -> true | None -> false) ->
 		let c = match is_special_compare e1 e2 with Some c -> c | None -> assert false in
 		gen_expr ctx (mk (TCall (mk (TField (mk (TTypeExpr (TClassDecl c)) t_dynamic e.epos,FDynamic "compare")) t_dynamic e.epos,[e1;e2])) ctx.inf.com.basic.tbool e.epos);
 	| TBinop (Ast.OpAdd,e1,e2) when (is_string_expr e1 || is_string_expr e2) ->
-	    gen_value_op ctx e1;
-	    if not(is_string_expr e1) then spr ctx ".to_s";
+	    gen_value_op_string ctx e1;
 	    spr ctx " + ";
-	    gen_value_op ctx e2;
-	    if not(is_string_expr e2) then spr ctx ".to_s";
+	    gen_value_op_string ctx e2;
 	| TBinop (Ast.OpUShr,e1,e2) ->
 	    gen_value_op ctx e1;
 	    spr ctx " >> ";
@@ -746,7 +801,7 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e 
 	| TField ({ eexpr = TConst (TThis) },s) when is_var_field s ->
 	    spr ctx "@";
 	    spr ctx (s_ident (field_name s))
-	| TField ({ eexpr = TTypeExpr t},s) when (ctx.curclass.cl_path = (t_path t)) && (is_var_field s) ->
+	| TField ({ eexpr = TTypeExpr t},s) when (ctx.curclass.cl_path = (t_path t)) && (is_var_field s) && ctx.in_static ->
 	    spr ctx "@";
 	    spr ctx (s_ident (field_name s))
 	      (* gen_field_access ctx e.etype (field_name s) *)
@@ -789,7 +844,7 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e 
 	        if not preblocked then print ctx "begin";
 		let bend = open_block ctx in
 		(match ctx.block_inits with None -> () | Some i -> i());
-		List.iter (fun e -> block_newline ctx; gen_expr ctx e) el;
+		List.iter (fun e -> block_newline ctx; gen_expr ~toplevel:true ctx e) el;
 		bend();
 		if not postblocked then begin
 		  softest_newline ctx;
@@ -827,9 +882,9 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e 
 			    spr ctx " = ";
 			    match e.eexpr with
 			    | TUnop (op,Ast.Postfix,e2) when op = Ast.Increment ->
-				gen_value ctx e2;
+				gen_expr ctx e2;
 				newline ctx;
-				gen_value ctx e;
+				gen_expr ~toplevel:true ctx e;
 			    | _ ->
 				gen_value ctx e;
 				) vl;
@@ -842,7 +897,7 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e 
 		    show_args ctx el;
 		);
 	| TIf (cond,e,None) when (match e.eexpr with TBlock _ -> false | TIf _ -> false | _ -> true) && shortenable ->
-		gen_expr ctx e;
+		gen_expr ~toplevel:true ctx e;
 		spr ctx " if ";
 		gen_value ctx (deparent cond);
 	| TIf (cond,e,eelse) ->
@@ -865,11 +920,23 @@ and gen_expr ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e 
 			spr ctx "else ";
 			gen_expr ~preblocked:true ~shortenable:false ctx (force_block e)));
 	| TUnop (op,Ast.Postfix,e) when op = Ast.Increment ->
-		gen_value ctx e;
-		spr ctx "+=1"
+	    if not(toplevel) then spr ctx "(";
+	    gen_value ctx e;
+	    spr ctx "+=1";
+	    if not(toplevel) then begin
+	      spr ctx ";";
+	      gen_value ctx e;
+	      spr ctx "-1)";
+	    end;
 	| TUnop (op,Ast.Postfix,e) when op = Ast.Decrement ->
-		gen_value ctx e;
-		spr ctx "-=1"
+	    if not(toplevel) then spr ctx "(";
+	    gen_value ctx e;
+	    spr ctx "-=1";
+	    if not(toplevel) then begin
+	      spr ctx ";";
+	      gen_value ctx e;
+	      spr ctx "+1)";
+	    end;
 	| TUnop (op,Ast.Prefix,e) when op = Ast.Increment ->
 		gen_value ctx e;
 		spr ctx "+=1"
@@ -1059,9 +1126,9 @@ and gen_value ctx e =
 			| [] ->
 				spr ctx "return nil";
 			| [e] ->
-				gen_expr ctx (assign e);
+				gen_expr ~toplevel:true ctx (assign e);
 			| e :: l ->
-				gen_expr ctx e;
+				gen_expr ~toplevel:true ctx e;
 				newline ctx;
 				loop l
 		in
