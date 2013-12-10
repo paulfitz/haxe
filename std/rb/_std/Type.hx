@@ -36,7 +36,7 @@ enum ValueType {
 	public static function getClass<T>( o : T ) : Class<T> untyped {
 		if( o == null )
 			return null;
-		return rb.Boot.getClass(o);
+		return untyped __dotcall__(o,"class");
 	}
 
 	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped {
@@ -46,18 +46,18 @@ enum ValueType {
 	}
 
 	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> untyped {
-		return c.__super__;
+		return untyped __dotcall__(c,"superclass");
 	}
 
 
 	public static function getClassName( c : Class<Dynamic> ) : String {
-		var a : Array<String> = untyped c.__name__;
-		return a.join(".");
+	  if (c==null) return null;
+	  return untyped __dotcall__(c,"name");
 	}
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String {
-		var a : Array<String> = untyped e.__ename__;
-		return a.join(".");
+	  var a : Array<String> = untyped e.__ename__;
+	  return a.join(".");
 	}
 
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
@@ -126,7 +126,7 @@ enum ValueType {
 	}
 
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
-		return untyped __dotcall__(c,"attributes.keys");
+	  return untyped __js__("c.instance_methods.map{|x| x.to_s}"); /* need to add more here */
 	}
 
 	public static function getClassFields( c : Class<Dynamic> ) : Array<String> {

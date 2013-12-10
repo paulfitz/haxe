@@ -95,7 +95,7 @@
 	}
 
 	public static function exit( code : Int ) : Void {
-		untyped __call__("exit", code);
+		untyped __call__("Kernel.exit", code);
 	}
 
 	public static function time() : Float {
