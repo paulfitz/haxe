@@ -863,9 +863,9 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 	| TCall (v,el) ->
 		gen_call ctx v el e.etype
 	| TArrayDecl el ->
-		spr ctx "[";
+		spr ctx "HxArray.new([";
 		concat ctx "," (gen_value ctx) el;
-		spr ctx "]"
+		spr ctx "])"
 	| TThrow e ->
 		spr ctx "throw ";
 		gen_value ctx e;
@@ -892,6 +892,8 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 		(match c.cl_path, params with
 		| (["haxe";"ds"],"StringMap"), [pt] -> print ctx "{}";
 		| (["haxe";"ds"],"IntMap"), [pt] -> print ctx "{}";
+		| (["haxe";"ds"],"ObjectMap"), [pt] -> print ctx "{}";
+		| ([],"Array"), [pt] -> print ctx "HxArray.new";
 		| _ -> 
 		    print ctx "%s.new" (s_path ctx true c.cl_path e.epos);
 		    show_args ctx el;
@@ -1412,6 +1414,14 @@ let generate_main ctx inits reqs com =
   spr ctx "def _hx_iterator(o) return lambda{ (o.class == Array) ? ::Rb::RubyIterator.new(o) : ((o.respond_to? 'iterator') ? o.iterator : o)} end";
   newline ctx;
   spr ctx "def _hx_call(o,k) ((o.respond_to? k) ? o.method(k).call : o[k].call) end"; *)
+  newline ctx;
+  spr ctx "# a band-aid for ruby accepting negative array indices";
+  newline ctx;
+  spr ctx "class HxArray < Array";
+  newline ctx;
+  spr ctx "  def [](i) ((i<0) ? nil : super(i)) end";
+  newline ctx;
+  spr ctx "end";
   List.iter (fun c ->
     newline ctx;
     print ctx "require '%s'" (req_path c);
