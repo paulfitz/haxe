@@ -202,8 +202,9 @@ let rec create_dir acc = function
 		if not (Sys.file_exists dir) then Unix.mkdir dir 0o755;
 		create_dir (d :: acc) l
 
-let init infos path =
-	let dir = (List.map camel_to_underscore (infos.com.file :: fst path)) in
+let init infos path main =
+        let fst_path = if main then (fst path) else ("lib" :: (fst path)) in
+	let dir = (infos.com.file :: (List.map camel_to_underscore fst_path)) in
 	create_dir [] dir;
 	let ch = open_out (String.concat "/" dir ^ "/" ^ (camel_to_underscore (snd path)) ^ ".rb") in
 	let imports = Hashtbl.create 0 in
@@ -1446,7 +1447,7 @@ let generate_main ctx inits reqs com =
   spr ctx "end";
   List.iter (fun c ->
     newline ctx;
-    print ctx "require_relative '%s'" (req_path c);
+    print ctx "require_relative 'lib/%s'" (req_path c);
 	    ) reqs;
 
   List.iter (fun e -> newline ctx; gen_expr ctx e) inits;
@@ -1528,9 +1529,9 @@ let generate com =
 		com = com;
 	} in
 	(* generate_resources infos; *)
-	let ctx = init infos ([],"enum") in
+	(* let ctx = init infos ([],"enum") true in
 	generate_base_enum ctx;
-	close ctx;
+	close ctx; *)
 	let reqs = ref [] in
 	let inits = ref [] in
 	List.iter (fun t ->
@@ -1546,7 +1547,7 @@ let generate com =
 			if c.cl_extern then
 				()
 			else
-				let ctx = init infos c.cl_path in
+				let ctx = init infos c.cl_path false in
 				if ((snd c.cl_path) = "Math") && ((List.length (fst c.cl_path)) == 0) then begin
 				  spr ctx "# This space left blank\n";
 				  close ctx;
@@ -1561,7 +1562,7 @@ let generate com =
 			if e.e_extern then
 				()
 			else
-				let ctx = init infos e.e_path in
+				let ctx = init infos e.e_path false in
 				generate_enum ctx e;
 				reqs := !reqs @ [e.e_path];
 				close ctx
@@ -1571,6 +1572,6 @@ let generate com =
 	(match com.main with
 	| None -> ()
 	| Some e -> inits := e :: !inits);
-	let ctx = init infos ([],"index") in
+	let ctx = init infos ([],"index") true in
 	generate_main ctx (List.rev !inits) !reqs com;
 	close ctx
