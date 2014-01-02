@@ -78,21 +78,6 @@ let is_known_positive e =
   | TConst(TInt i) -> (Int32.compare i Int32.zero >= 0)
   | _ -> false
 
-let tweak_class_name n =
-  if (n.[0] == '_') then ("X" ^ (String.capitalize n))  else (String.capitalize n) 
-
-let tweak_package_name n =
-  (tweak_class_name n)
-
-let camel_to_underscore n = 
-  let r = Str.regexp "\\([a-z]\\)\\([A-Z]\\)" in
-  String.lowercase (Str.global_replace r "\\1_\\2" n)
-
-let tweak_s_type_path (p,s) = match p with [] -> s | _ -> "::" ^ String.concat "::" (List.map tweak_package_name p) ^ "::" ^ s
-
-let req_path (p,s) = match p with [] -> camel_to_underscore(s) | _ -> String.concat "/" (List.map camel_to_underscore p) ^ "/" ^ camel_to_underscore(s)
-
-
 let protect name =
 	match name with
 	| "Namespace" -> "_" ^ name
@@ -102,6 +87,41 @@ let this ctx = if ctx.in_value <> None then "_this_" else "self"
 
 let has_feature ctx = Common.has_feature ctx.inf.com
 let add_feature ctx = Common.add_feature ctx.inf.com
+
+let reserved =
+	let h = Hashtbl.create 0 in
+	List.iter (fun l -> Hashtbl.add h l ())
+	(* these ones are defined in order to prevent recursion in some Std functions *)
+	["is";"as";"int";"uint";"const";"getTimer";"typeof";"parseInt";"parseFloat";
+	(* AS3 keywords which are not Haxe ones *)
+	"finally";"with";"final";"internal";"native";"namespace";"include";"delete";
+	(* some globals give some errors with Flex SDK as well *)
+	"print";"trace";
+	(* we don't include get+set since they are not 'real' keywords, but they can't be used as method names *)
+	"function";"class";"var";"if";"else";"while";"do";"for";"break";"next";"return";"extends";"implements";
+	"import";"switch";"case";"default";"static";"public";"private";"try";"catch";"new";"this";"throw";"interface";
+	"override";"package";"nil";"true";"false";"void";
+	 "begin";"rescue";"end";
+
+	 "Sys";
+	];
+	h
+
+	(* "each", "label" : removed (actually allowed in locals and fields accesses) *)
+
+let tweak_class_name n =
+  if Hashtbl.mem reserved n then "Hx" ^ (String.capitalize n) else if (n.[0] == '_') then ("X" ^ (String.capitalize n))  else (String.capitalize n) 
+
+let tweak_package_name n =
+  (tweak_class_name n)
+
+let camel_to_underscore n = 
+  let r = Str.regexp "\\([a-z]\\)\\([A-Z]\\)" in
+  String.lowercase (Str.global_replace r "\\1_\\2" n)
+
+let tweak_s_type_path (p,s) = match p with [] -> (tweak_class_name s) | _ -> "::" ^ String.concat "::" (List.map tweak_package_name p) ^ "::" ^ (tweak_class_name s)
+
+let req_path (p,s) = match p with [] -> camel_to_underscore(s) | _ -> String.concat "/" (List.map camel_to_underscore p) ^ "/" ^ camel_to_underscore(s)
 
 let s_path ctx stat path p =
 	match path with
@@ -116,7 +136,8 @@ let s_path ctx stat path p =
 		| "Date" -> 
 		    add_feature ctx "use.date";
 		    "Date"
-		| _ -> name)
+		| "Array" -> "HxArray" (* ideally could stay with native Array in a non-strict mode where user promises not to access negative indices *)
+		| _ -> (tweak_class_name name))
 	| (["flash"],"FlashXml__") ->
 		"Xml"
 	| (["flash";"errors"],"Error") ->
@@ -139,24 +160,6 @@ let s_path ctx stat path p =
 		if not (List.mem pack packs) then Hashtbl.replace ctx.imports name (pack :: packs);
 		tweak_s_type_path (pack,name)
 
-let reserved =
-	let h = Hashtbl.create 0 in
-	List.iter (fun l -> Hashtbl.add h l ())
-	(* these ones are defined in order to prevent recursion in some Std functions *)
-	["is";"as";"int";"uint";"const";"getTimer";"typeof";"parseInt";"parseFloat";
-	(* AS3 keywords which are not Haxe ones *)
-	"finally";"with";"final";"internal";"native";"namespace";"include";"delete";
-	(* some globals give some errors with Flex SDK as well *)
-	"print";"trace";
-	(* we don't include get+set since they are not 'real' keywords, but they can't be used as method names *)
-	"function";"class";"var";"if";"else";"while";"do";"for";"break";"next";"return";"extends";"implements";
-	"import";"switch";"case";"default";"static";"public";"private";"try";"catch";"new";"this";"throw";"interface";
-	"override";"package";"nil";"true";"false";"void";
-	 "begin";"rescue";"end";
-	];
-	h
-
-	(* "each", "label" : removed (actually allowed in locals and fields accesses) *)
 
 let s_ident m =
   let n = camel_to_underscore m in
@@ -187,7 +190,10 @@ let rec is_string_type t =
 	| TAbstract (a,pl) -> is_string_type (Codegen.Abstract.get_underlying_type a pl)
 	| _ -> false
 
-let is_string_expr e = is_string_type e.etype
+let is_string_expr e = 
+  match e.eexpr with 
+  | TConst TNull -> false
+  | _ -> is_string_type e.etype
 
 let rec create_dir acc = function
 	| [] -> ()
@@ -229,13 +235,23 @@ let init infos path =
 	}
 
 let close ctx =
-  let module_name = (String.concat "::" (List.map tweak_package_name (fst ctx.path))) in
+  let module_names = (List.map tweak_package_name (fst ctx.path)) in
+  (* let module_name = (String.concat "::" (List.map tweak_package_name (fst ctx.path))) in *)
   output_string ctx.ch "#!/bin/env ruby\n";
   output_string ctx.ch "# encoding: utf-8\n\n";
-  if has_feature ctx "use.date" then output_string ctx.ch "require 'date'\n\n";
-  output_string ctx.ch (Printf.sprintf "%s %s\n" (if module_name <> "" then "module" else "begin") module_name);
-	output_string ctx.ch (Buffer.contents ctx.buf);
-	close_out ctx.ch
+  if has_feature ctx "use.date" then 
+    output_string ctx.ch "require 'date'\n\n";
+  if (List.length module_names) > 0 then begin
+    List.iter (fun name -> 
+      output_string ctx.ch (Printf.sprintf "module %s\n" name)) module_names;
+  end;
+  output_string ctx.ch (Buffer.contents ctx.buf);
+  if (List.length module_names) > 0 then begin
+    List.iter (fun name -> 
+      output_string ctx.ch "\nend") module_names;
+  end;
+  output_string ctx.ch "\n";
+  close_out ctx.ch
 
 let gen_local ctx l =
 	ctx.gen_uid <- ctx.gen_uid + 1;
@@ -1392,13 +1408,19 @@ let generate_class ctx c =
 	newline ctx;
 	spr ctx "end";
 	pack();
-	newline ctx;
-	spr ctx "end"
+	newline ctx
 
 let generate_main ctx inits reqs com =
   ctx.curclass <- { null_class with cl_path = [],"index" };
   let pack = open_block ctx in
   spr ctx "  # Hello good evening and welcome to a translation from the original Haxe";
+  newline ctx;
+  spr ctx "  ruby_major, ruby_minor, ruby_patch = RUBY_VERSION.split('.').map{|x| x.to_i}\n";
+  spr ctx "  if ruby_major<1 || (ruby_major==1 && (ruby_minor<9 || (ruby_minor==9 && ruby_patch<3)))\n";
+  spr ctx "    $stderr.puts \"Your current Ruby version is: #{RUBY_VERSION}. Haxe/Ruby generates code for version 1.9.3 or later.\"\n";
+  spr ctx "    Kernel.exit 1\n";
+  spr ctx "  end\n";
+  newline ctx;
   let rec chk_features e =
     if is_dynamic_iterator ctx e then add_feature ctx "use.$iterator";
     match e.eexpr with
@@ -1424,14 +1446,13 @@ let generate_main ctx inits reqs com =
   spr ctx "end";
   List.iter (fun c ->
     newline ctx;
-    print ctx "require '%s'" (req_path c);
+    print ctx "require_relative '%s'" (req_path c);
 	    ) reqs;
 
   List.iter (fun e -> newline ctx; gen_expr ctx e) inits;
   pack();
-  newline ctx;
+  newline ctx
 
-  spr ctx "end"
 
 let generate_enum ctx e =
 	ctx.local_types <- List.map snd e.e_types;
@@ -1478,8 +1499,6 @@ let generate_enum ctx e =
 	newline ctx;
 	print ctx "end";
 	pack();
-	newline ctx;
-	print ctx "end";
 	newline ctx
 
 let generate_base_enum ctx =
@@ -1530,7 +1549,6 @@ let generate com =
 				let ctx = init infos c.cl_path in
 				if ((snd c.cl_path) = "Math") && ((List.length (fst c.cl_path)) == 0) then begin
 				  spr ctx "# This space left blank\n";
-				  spr ctx "end\n";
 				  close ctx;
 				end else begin
 				  generate_class ctx c;
