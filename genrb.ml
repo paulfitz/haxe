@@ -977,7 +977,7 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 		handle_break();
 	| TWhile (cond,e,Ast.DoWhile) ->
 		let handle_break = handle_break ctx e in
-		spr ctx "do ";
+		spr ctx "begin ";
 		gen_expr ~preblocked:true ctx (force_block e);
 		spr ctx " while";
 		gen_value ctx (parent cond);
@@ -1445,6 +1445,7 @@ let generate_main ctx inits reqs com =
   spr ctx "  def [](i) ((i<0) ? nil : super(i)) end";
   newline ctx;
   spr ctx "end";
+  newline ctx;
   List.iter (fun c ->
     newline ctx;
     print ctx "require_relative 'lib/%s'" (req_path c);
