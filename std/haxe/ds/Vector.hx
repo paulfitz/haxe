@@ -69,6 +69,8 @@ abstract Vector<T>(VectorData<T>) {
 			untyped this.__SetSizeExact(length);
 		#elseif python
 			this = python.Syntax.pythonCode("[{0}]*{1}", null, length);
+		#elseif rb
+			this = untyped __call__("Array.new",length);
 		#else
 			this = [];
 			untyped this.length = length;
