@@ -32,16 +32,16 @@ class FileInput extends haxe.io.Input {
 	}
 
 	public override function readByte() : Int {
-		if(untyped __call__('feof', __f)) return throw new haxe.io.Eof();
-		var r = untyped __call__('fread', __f, 1);
-		if(untyped __physeq__(r, false)) return throw haxe.io.Error.Custom('An error occurred');
-		return untyped __call__('ord', r);
+	  if(untyped __dotcall__(__f,"eof?")) return throw new haxe.io.Eof();
+		var r = untyped __dotcall__(__f, "getbyte");
+		if(r == null) return throw haxe.io.Error.Custom('An error occurred');
+		return untyped r;
 	}
 
 	public override function readBytes( s : haxe.io.Bytes, p : Int, l : Int ) : Int {
-		if(untyped __call__('feof', __f)) return throw new haxe.io.Eof();
-		var r : String = untyped __call__('fread', __f, l);
-		if(untyped __physeq__(r, false)) return throw haxe.io.Error.Custom('An error occurred');
+	  if(untyped __dotcall__(__f,"eof?")) return throw new haxe.io.Eof();
+	  var r : String = untyped __dotcall__(__f, "read", l);
+		if(r == null) return throw haxe.io.Error.Custom('An error occurred');
 		var b = haxe.io.Bytes.ofString(r);
 		s.blit(p, b, 0, r.length);
 		return r.length;
@@ -49,7 +49,7 @@ class FileInput extends haxe.io.Input {
 
 	public override function close() : Void {
 		super.close();
-		if(__f != null)	untyped __call__('fclose', __f);
+		if(__f != null)	untyped __dotcall__(__f,'close');
 	}
 
 	public function seek( p : Int, pos : FileSeek ) : Void {

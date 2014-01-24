@@ -37,7 +37,7 @@ import rb.Boot;
 	}
 
 	public static inline function int( x : Float ) : Int {
-		return cast(x) | 0;
+		return untyped __dotcall__(x,"to_i");
 	}
 
 	public static inline function parseInt( x : String ) : Null<Int> {
