@@ -63,6 +63,8 @@ abstract Vector<T>(VectorData<T>) {
 			this = new java.NativeArray(length);
 		#elseif cpp
 			this = untyped (new Array<T>()).__SetSizeExact(length);
+		#elseif rb
+			this = untyped __call__("Array.new",length);
 		#else
 			this = [];
 			untyped this.length = length;
