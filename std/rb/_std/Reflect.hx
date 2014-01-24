@@ -29,7 +29,9 @@
 	  //return untyped o.method(field);
 	  //return field;
 	  try {
-	    return o[field];
+	    var result = o[field];
+	    if (result==null) result = o[untyped __dotcall__(field,"to_sym")];
+	    return result;
 	  } catch (e : Dynamic) {
 	    return field;
 	  }

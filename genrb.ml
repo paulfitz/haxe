@@ -103,7 +103,7 @@ let reserved =
 	"override";"package";"nil";"true";"false";"void";
 	 "begin";"rescue";"end";
 
-	 "Sys";
+	 "Sys";"File";
 	];
 	h
 
@@ -411,7 +411,7 @@ let handle_break ctx e =
 		(fun() -> ctx.handle_break <- old_handle)
 	with
 		Exit ->
-			spr ctx "try {";
+			spr ctx "catch :__break__ do";
 			let b = open_block ctx in
 			newline ctx;
 			ctx.handle_break <- true;
@@ -419,7 +419,8 @@ let handle_break ctx e =
 				b();
 				ctx.handle_break <- old_handle;
 				newline ctx;
-				spr ctx "} catch( e : * ) { if( e != \"__break__\" ) throw e; }";
+				spr ctx "end";
+				newline ctx;
 			)
 
 let is_dynamic_iterator ctx e =
@@ -653,18 +654,24 @@ let rec gen_call ctx e el r =
 		spr ctx ".call";
 	        show_args ctx el;
 	| _ ->
-		gen_value ctx e;
-	        if (match e.eexpr with
-		| TField (_,FStatic(_,f)) when (match f.cf_kind with | Var _ -> true | Method MethDynamic -> true | _ -> false) -> 
-		    true
-		| TField (_,_) -> false
-		| TFunction _ -> true
-		| TArray _ -> true
-		| TParenthesis _ -> true
-		| TConst TSuper -> false
-		| _ -> true) then spr ctx ".call";
-	        show_args ctx el;
-
+                let is_super = (match e.eexpr with | TField ({ eexpr = TConst TSuper },_) -> true | _ -> false) in
+		if is_super then begin
+		  spr ctx "super"; (* incomplete; covers common case though of super.samename() *)
+	          show_args ctx el;
+		end else begin
+		  gen_value ctx e;
+	          if (match e.eexpr with
+		  | TField (_,FStatic(_,f)) when (match f.cf_kind with | Var _ -> true | Method MethDynamic -> true | _ -> false) -> 
+		      true
+		  | TField (_,_) -> false
+		  | TFunction _ -> true
+		  | TArray _ -> true
+		  | TParenthesis _ -> true
+		  | TConst TSuper -> false
+		  | _ -> true) then spr ctx ".call";
+	          show_args ctx el;
+		end;
+		
 and show_args ctx el =
   if (List.length el)>0 then spr ctx "(";
   concat ctx "," (gen_value ctx) el;
@@ -773,6 +780,10 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 	    gen_value ctx e1;
 	    spr ctx " = ";
 	    gen_expr ctx (mk (TBinop (Ast.OpMod, e1, e2)) e1.etype e1.epos);
+	| TBinop (Ast.OpAssignOp(Ast.OpUShr),e1,e2) ->
+	    gen_value ctx e1;
+	    spr ctx " = ";
+	    gen_expr ctx (mk (TBinop (Ast.OpUShr, e1, e2)) e1.etype e1.epos);
 	| TBinop (Ast.OpEq,e1,e2) when (match is_special_compare e1 e2 with Some c -> true | None -> false) ->
 		let c = match is_special_compare e1 e2 with Some c -> c | None -> assert false in
 		gen_expr ctx (mk (TCall (mk (TField (mk (TTypeExpr (TClassDecl c)) t_dynamic e.epos,FDynamic "compare")) t_dynamic e.epos,[e1;e2])) ctx.inf.com.basic.tbool e.epos);
@@ -781,9 +792,11 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 	    spr ctx " + ";
 	    gen_value_op_string ctx e2;
 	| TBinop (Ast.OpUShr,e1,e2) ->
+	    spr ctx "hx_ushr(";
 	    gen_value_op ctx e1;
-	    spr ctx " >> ";
+	    spr ctx ",";
 	    gen_value_op ctx e2;
+	    spr ctx ")";
 	(* what is this used for? *)
 (* 	| TBinop (op,{ eexpr = TField (e1,s) },e2) ->
 		gen_value_op ctx e1;
@@ -853,7 +866,7 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 			gen_value ctx e);
 	| TBreak ->
 		if ctx.in_value <> None then unsupported e.epos;
-		if ctx.handle_break then spr ctx "throw \"__break__\"" else spr ctx "break"
+		if ctx.handle_break then spr ctx "throw :__break__" else spr ctx "break"
 	| TContinue ->
 		if ctx.in_value <> None then unsupported e.epos;
 		spr ctx "next"
@@ -957,11 +970,23 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 	      spr ctx "+1)";
 	    end;
 	| TUnop (op,Ast.Prefix,e) when op = Ast.Increment ->
-		gen_value ctx e;
-		spr ctx "+=1"
+	    if not(toplevel) then spr ctx "(";
+	    gen_value ctx e;
+	    spr ctx "+=1";
+	    if not(toplevel) then begin
+	      spr ctx ";";
+	      gen_value ctx e;
+	      spr ctx ")";
+	    end;
 	| TUnop (op,Ast.Prefix,e) when op = Ast.Decrement ->
-		gen_value ctx e;
-		spr ctx "-=1"
+	    if not(toplevel) then spr ctx "(";
+	    gen_value ctx e;
+	    spr ctx "-=1";
+	    if not(toplevel) then begin
+	      spr ctx ";";
+	      gen_value ctx e;
+	      spr ctx ")";
+	    end;
 	| TUnop (op,Ast.Prefix,e) ->
 		spr ctx (Ast.s_unop op);
 		gen_value ctx e
@@ -1117,12 +1142,13 @@ and gen_value ctx e =
 			gen_value ctx e1;
 			(* print ctx ") as %s)" s; *)
 		| _ ->
-			print ctx "%s(" s;
+			(* print ctx "%s(" s; *)
 			gen_value ctx e1;
-			spr ctx ")";
+			(* spr ctx ")"; *)
 		end
 	| TCast (e1,Some t) ->
-		gen_value ctx (Codegen.default_cast ctx.inf.com e1 t e.etype e.epos)
+	    gen_value ctx e1
+		(* gen_value ctx (Codegen.default_cast ctx.inf.com e1 t e.etype e.epos) *)
 	| TReturn _
 	| TBreak
 	| TContinue ->
@@ -1446,12 +1472,16 @@ let generate_main ctx inits reqs com =
   newline ctx;
   spr ctx "end";
   newline ctx;
+  spr ctx "def hx_ushr(x,ct) (x >> ct) | (x << (32 - ct)) & 0xFFFFFFFF end";
+  newline ctx;
   List.iter (fun c ->
     newline ctx;
     print ctx "require_relative 'lib/%s'" (req_path c);
 	    ) reqs;
 
+  newline ctx;
   List.iter (fun e -> newline ctx; gen_expr ctx e) inits;
+  newline ctx;
   pack();
   newline ctx
 
