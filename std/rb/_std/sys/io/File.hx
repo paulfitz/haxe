@@ -45,11 +45,11 @@ enum FileHandle {
 	}
 
 	public static function read( path : String, binary : Bool = true ) : FileInput {
-		return untyped new FileInput(__call__('fopen', path, binary ? "rb" : "r"));
+		return untyped new FileInput(__call__('File.open', path, binary ? "rb" : "r"));
 	}
 
 	public static function write( path : String, binary : Bool = true ) : FileOutput {
-		return untyped new FileOutput(untyped __call__('fopen', path, binary ? "wb" : "w"));
+		return untyped new FileOutput(untyped __call__('File.open', path, binary ? "wb" : "w"));
 	}
 
 	public static function append( path : String, binary : Bool = true ) : FileOutput {

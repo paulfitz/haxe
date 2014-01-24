@@ -75,6 +75,8 @@ abstract Vector<T>(VectorData<T>) {
 			this = python.Syntax.pythonCode("[{0}]*{1}", null, length);
 		#elseif lua
 			this = untyped __lua_table__({length:length});
+		#elseif rb
+			this = untyped __call__("Array.new",length);
 		#else
 			this = [];
 			untyped this.length = length;
