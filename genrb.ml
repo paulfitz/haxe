@@ -180,6 +180,99 @@ let s_ident_local ctx m =
   else *)
     s_ident m
 
+let rec is_uncertain_type t =
+	match follow t with
+	| TInst (c, _) -> c.cl_interface
+	| TMono _ -> true
+	| TAnon a ->
+	  (match !(a.a_status) with
+	  | Statics _
+	  | EnumStatics _ -> false
+	  | _ -> true)
+	| TDynamic _ -> true
+	| _ -> false
+
+let is_uncertain_expr e =
+	is_uncertain_type e.etype
+
+let rec is_anonym_type t =
+	match follow t with
+	| TAnon a ->
+	  (match !(a.a_status) with
+	  | Statics _
+	  | EnumStatics _ -> false
+	  | _ -> true)
+	| _ -> false
+
+let is_anonym_expr e = is_anonym_type e.etype
+
+let rec is_unknown_type t =
+	match follow t with
+	| TMono r ->
+		(match !r with
+		| None -> true
+		| Some t -> is_unknown_type t)
+	| _ -> false
+
+let is_unknown_expr e =	is_unknown_type e.etype
+
+let rec is_string_type t =
+	match follow t with
+	| TInst ({cl_path = ([], "String")}, _) -> true
+	| TAnon a ->
+	   (match !(a.a_status) with
+	   | Statics ({cl_path = ([], "String")}) -> true
+	   | _ -> false)
+	| TAbstract (a,pl) -> is_string_type (Codegen.Abstract.get_underlying_type a pl)
+	| _ -> false
+
+let is_string_expr e = is_string_type e.etype
+
+let to_string ctx e =
+	let v = alloc_var "__call__" t_dynamic in
+	let f = mk (TLocal v) t_dynamic e.epos in
+	mk (TCall (f, [ Codegen.string ctx.inf.com "_hx_str" e.epos; e])) ctx.inf.com.basic.tstring e.epos
+
+let as_string_expr ctx e =
+	match e.eexpr with
+	| TConst (TNull) ->
+		to_string ctx e
+	| _ when not (is_string_expr e) ->
+		to_string ctx e
+	| _ -> e
+(* for known String type that could have null value *)
+let to_string_null ctx e =
+	let v = alloc_var "__call__" t_dynamic in
+	let f = mk (TLocal v) t_dynamic e.epos in
+	mk (TCall (f, [ Codegen.string ctx.inf.com "_hx_str" e.epos; e])) ctx.inf.com.basic.tstring e.epos
+
+
+let as_string_expr ctx e = match e.eexpr with
+	| TConst (TNull) ->  to_string ctx e
+	| TConst (TString s) -> e
+	| TBinop (op,_,_) when (is_string_expr e)-> e
+	| TCall ({eexpr = TField({eexpr = TTypeExpr(TClassDecl {cl_path = ([],"Std")})},FStatic(c,f) )}, [_]) when (f.cf_name="string") -> e
+	| TCall ({eexpr = TLocal _}, [{eexpr = TConst (TString ("_hx_str" | "_hx_str_or_null"))}]) -> e
+	| _ when not (is_string_expr e) -> to_string ctx e
+	| _ -> to_string_null ctx e
+
+
+(*
+let rec is_uncertain_type t =
+	match follow t with
+	| TInst (c, _) -> c.cl_interface
+	| TMono _ -> true
+	| TAnon a ->
+	  (match !(a.a_status) with
+	  | Statics _
+	  | EnumStatics _ -> false
+	  | _ -> true)
+	| TDynamic _ -> true
+	| _ -> false
+
+let is_uncertain_expr e =
+	is_uncertain_type e.etype
+
 let rec is_string_type t =
 	match follow t with
 	| TInst ({cl_path = ([], "String")}, _) -> true
@@ -194,6 +287,7 @@ let is_string_expr e =
   match e.eexpr with 
   | TConst TNull -> false
   | _ -> is_string_type e.etype
+*)
 
 let rec create_dir acc = function
 	| [] -> ()
@@ -506,10 +600,10 @@ let gen_function_header ctx name f params p in_expression =
 let rec gen_call ctx e el r =
 	match e.eexpr , el with
 	| TCall (x,_) , el ->
-		spr ctx "(";
-		gen_value ctx e;
-		spr ctx ").call";
-	        show_args ctx el;
+	    spr ctx "(";
+	    gen_value ctx e;
+	    spr ctx ").call";
+	    show_args ctx el;
 	| TLocal { v_name = "__is__" } , [e1;e2] ->
 		gen_value ctx e1;
 		spr ctx " is ";
@@ -558,9 +652,9 @@ let rec gen_call ctx e el r =
 		gen_value ctx e0;
 		spr ctx ".";
 		gen_value ctx e1;
-		spr ctx "{|a,b| (";
-		gen_value ctx e2;
-		spr ctx ").call(a,b)}";
+		spr ctx "{|a,b| ";
+		call_expr_begin ctx e2;
+		spr ctx "(a,b)}";
 	| TLocal { v_name = "__js__" }, [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
 	| TLocal { v_name = "__keys__" }, [e] ->
@@ -658,20 +752,28 @@ let rec gen_call ctx e el r =
 		if is_super then begin
 		  spr ctx "super"; (* incomplete; covers common case though of super.samename() *)
 	          show_args ctx el;
-		end else begin
-		  gen_value ctx e;
-	          if (match e.eexpr with
-		  | TField (_,FStatic(_,f)) when (match f.cf_kind with | Var _ -> true | Method MethDynamic -> true | _ -> false) -> 
-		      true
-		  | TField (_,_) -> false
-		  | TFunction _ -> true
-		  | TArray _ -> true
-		  | TParenthesis _ -> true
-		  | TConst TSuper -> false
-		  | _ -> true) then spr ctx ".call";
-	          show_args ctx el;
-		end;
+		end else call_expr ctx e el;
 		
+and call_expr ctx e el =
+  call_expr_begin ctx e;
+  show_args ctx el
+    
+and call_expr_begin ctx e =
+  gen_value ctx e;
+  if (match e.eexpr with
+  | TField (_,FStatic(_,f)) when (match f.cf_kind with | Var _ -> true | Method MethDynamic -> true | _ -> false) -> 
+      true
+  | TField (x,f) when field_name f = "iterator" && is_dynamic_iterator ctx e ->
+      false
+  | TField (e2,_) when (is_anonym_type e2.etype) ->
+      true
+  | TField (_,_) -> false
+  | TFunction _ -> true
+  | TArray _ -> true
+  | TParenthesis _ -> true
+  | TConst TSuper -> false
+  | _ -> true) then spr ctx ".call"
+
 and show_args ctx el =
   if (List.length el)>0 then spr ctx "(";
   concat ctx "," (gen_value ctx) el;
@@ -687,15 +789,18 @@ and gen_value_op ctx e =
 		gen_value ctx e
 
 and gen_value_op_string ctx e =
-  if not(is_string_expr e) then begin
-    (match e.eexpr with
+  if (is_uncertain_expr e) || not(is_string_expr e) then begin
+    spr ctx "_hx_str(";
+    gen_value ctx e;
+    spr ctx ")";
+(*    (match e.eexpr with
     | TBinop (op,_,_) ->
 	spr ctx "(";
 	gen_value ctx e;
 	spr ctx ")";
     | _ ->
 	gen_value ctx e);
-    spr ctx ".to_s";
+    spr ctx ".to_s";*)
   end else
     gen_value_op ctx e
 
@@ -738,10 +843,11 @@ and gen_field_access ctx t s =
 	in
 	match follow t with
 	| TInst (c,_) -> field c
-	| TAnon a ->
+ 	| TAnon a ->
 		(match !(a.a_status) with
 		| Statics c -> field c
-		| _ -> print ctx ".%s" (s_ident s))
+		| EnumStatics _ -> print ctx ".%s" (s_ident s)
+		| _ -> print ctx "[:%s]" (s_ident s))
 	| _ ->
 		print ctx ".%s" (s_ident s)
 
@@ -787,12 +893,20 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 	| TBinop (Ast.OpEq,e1,e2) when (match is_special_compare e1 e2 with Some c -> true | None -> false) ->
 		let c = match is_special_compare e1 e2 with Some c -> c | None -> assert false in
 		gen_expr ctx (mk (TCall (mk (TField (mk (TTypeExpr (TClassDecl c)) t_dynamic e.epos,FDynamic "compare")) t_dynamic e.epos,[e1;e2])) ctx.inf.com.basic.tbool e.epos);
+	| TBinop (Ast.OpAdd,e1,e2) when (is_uncertain_expr e1 && is_uncertain_expr e2) ->
+	    spr ctx "_hx_add(";
+	    gen_value_op ctx e1;
+	    spr ctx ", ";
+	    gen_value_op ctx e2;
+	    spr ctx ")";
 	| TBinop (Ast.OpAdd,e1,e2) when (is_string_expr e1 || is_string_expr e2) ->
-	    gen_value_op_string ctx e1;
+	    (* gen_value_op_string ctx e1; *)
+	    gen_value_op ctx (as_string_expr ctx e1);
 	    spr ctx " + ";
-	    gen_value_op_string ctx e2;
+	    gen_value_op ctx (as_string_expr ctx e2);
+	    (* gen_value_op_string ctx e2; *)
 	| TBinop (Ast.OpUShr,e1,e2) ->
-	    spr ctx "hx_ushr(";
+	    spr ctx "_hx_ushr(";
 	    gen_value_op ctx e1;
 	    spr ctx ",";
 	    gen_value_op ctx e2;
@@ -1472,7 +1586,11 @@ let generate_main ctx inits reqs com =
   newline ctx;
   spr ctx "end";
   newline ctx;
-  spr ctx "def hx_ushr(x,ct) (x >> ct) | (x << (32 - ct)) & 0xFFFFFFFF end";
+  spr ctx "def _hx_ushr(x,ct) (x >> ct) | (x << (32 - ct)) & 0xFFFFFFFF end";
+  newline ctx;
+  spr ctx "def _hx_str(x) (x.nil? ? 'null' : x.to_s) end";
+  newline ctx;
+  spr ctx "def _hx_add(x,y) (((x.is_a? String)||(y.is_a? String)) ? (_hx_str(x)+_hx_str(y)) : (x+y)) end";
   newline ctx;
   List.iter (fun c ->
     newline ctx;
