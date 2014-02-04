@@ -31,7 +31,9 @@
   inline function indexOf( str : String, ?startIndex : Int ) : Int {
     return untyped __dotcall__(this,"index",str,startIndex||0)||-1;
   }
-	function lastIndexOf( str : String, ?startIndex : Int ) : Int;
+  inline function lastIndexOf( str : String, ?startIndex : Int ) : Int {
+    return untyped __dotcall__(this,"rindex",str,startIndex||0)||-1;
+  }
   function split( delimiter : String ) : Array<String>;
 	function toString() : String;
 	function substring( startIndex : Int, ?endIndex : Int ) : String;
