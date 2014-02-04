@@ -123,11 +123,13 @@ class Math
   //static function random() : Float;
 
   public static inline function isFinite( f : Float ) : Bool {
-    return untyped __dotcall__(f,"finite?");
+    // should optimize this later for if we are sure we have a float
+    return untyped __dotcall__(untyped __dotcall__(f,"to_f"),"finite?");
   }
 
   public static inline function isNaN( f : Float ) : Bool {
-    return untyped __dotcall__(f,"nan?");
+    // should optimize this later for if we are sure we have a float
+    return untyped __dotcall__(untyped __dotcall__(f,"to_f"),"nan?");
   }
 }
 
