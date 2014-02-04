@@ -6,7 +6,11 @@ class RubyIterator {
   private var len : Int;
 
   public function new(x : Dynamic) {
-    if (untyped __dotcall__(x,"respond_to?","each")) {
+    if (untyped __dotcall__(x,"is_a?",__js__("Hash"))) {
+      ref = untyped __dotcall__(x,"values.each");
+      at = 0;
+      len = untyped __dotcall__(x,"size");
+    } else if (untyped __dotcall__(x,"respond_to?","each")) {
       ref = untyped __dotcall__(x,"each");
       at = 0;
       len = untyped __dotcall__(x,"size");
