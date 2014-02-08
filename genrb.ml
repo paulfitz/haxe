@@ -202,6 +202,11 @@ let rec is_anonym_type t =
 	  | Statics _
 	  | EnumStatics _ -> false
 	  | _ -> true)
+	| TDynamic _ -> true
+	| TAbstract ({ a_path = [],_ },pl) -> 
+	    false
+	| TAbstract (a,pl) -> 
+	    is_anonym_type (Codegen.Abstract.get_underlying_type a pl)
 	| _ -> false
 
 let is_anonym_expr e = is_anonym_type e.etype
@@ -608,6 +613,10 @@ let rec gen_call ctx e el r =
 		gen_value ctx e1;
 		spr ctx " is ";
 		gen_value ctx e2;
+	| TLocal { v_name = "__assign__" } , [e1;e2] ->
+		gen_value ctx e1;
+		spr ctx " = ";
+		gen_value ctx e2;
 	| TLocal { v_name = "__in__" } , [e1;e2] ->
 		gen_value ctx e1;
 		spr ctx " in ";
@@ -843,13 +852,18 @@ and gen_field_access ctx t s =
 	in
 	match follow t with
 	| TInst (c,_) -> field c
- 	| TAnon a ->
+	| TDynamic _ -> print ctx "[:%s]" (s_ident s)
+	| TAnon a ->
 		(match !(a.a_status) with
 		| Statics c -> field c
 		| EnumStatics _ -> print ctx ".%s" (s_ident s)
 		| _ -> print ctx "[:%s]" (s_ident s))
+	| TAbstract ({ a_path = [],_ },pl) -> 
+	    print ctx ".%s" (s_ident s)
+	| TAbstract (a,pl) -> 
+	    gen_field_access ctx (Codegen.Abstract.get_underlying_type a pl) s
 	| _ ->
-		print ctx ".%s" (s_ident s)
+	    print ctx ".%s" (s_ident s)
 
 and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e =
         let in_expression = ctx.in_expression in
@@ -1011,7 +1025,7 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 		concat ctx "," (gen_value ctx) el;
 		spr ctx "])"
 	| TThrow e ->
-		spr ctx "throw ";
+		spr ctx "raise ";
 		gen_value ctx e;
 	| TVars [] ->
 		()

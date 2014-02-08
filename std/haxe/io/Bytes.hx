@@ -176,6 +176,8 @@ class Bytes {
 			if( b1[i] != b2[i] )
 				#if cpp
 				return untyped b1[i] - untyped b2[i];
+                                #elseif rb
+		                return untyped __dotcall__(b1[i],'ord') - untyped __dotcall__(b2[i],'ord');
 				#else
 				return untyped b1[i] - untyped b2[i];
 				#end
