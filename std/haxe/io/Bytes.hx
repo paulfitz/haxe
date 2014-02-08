@@ -205,7 +205,11 @@ class Bytes {
 		var len = (length < other.length) ? length : other.length;
 		for( i in 0...len )
 			if( b1[i] != b2[i] )
+                                #if rb
+		                return untyped __dotcall__(b1[i],'ord') - untyped __dotcall__(b2[i],'ord');
+				#else
 				return untyped b1[i] - untyped b2[i];
+                                #end
 		return length - other.length;
 		#end
 	}
