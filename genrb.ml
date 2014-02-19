@@ -136,7 +136,7 @@ let s_path ctx stat path p =
 		| "Date" -> 
 		    add_feature ctx "use.date";
 		    "Date"
-		| "Array" -> "HxArray" (* ideally could stay with native Array in a non-strict mode where user promises not to access negative indices *)
+		| "Array" -> "Array" (* or HxArray - ideally could stay with native Array in a non-strict mode where user promises not to access negative indices *)
 		| _ -> (tweak_class_name name))
 	| (["flash"],"FlashXml__") ->
 		"Xml"
@@ -1021,12 +1021,13 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 	| TCall (v,el) ->
 		gen_call ctx v el e.etype
 	| TArrayDecl el ->
-		spr ctx "HxArray.new([";
+		spr ctx "[";
 		concat ctx "," (gen_value ctx) el;
-		spr ctx "])"
+		spr ctx "]"
 	| TThrow e ->
-		spr ctx "raise ";
+		spr ctx "raise hx_exception(";
 		gen_value ctx e;
+		spr ctx ")";
 	| TVars [] ->
 		()
 	| TVars vl ->
@@ -1051,7 +1052,7 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 		| (["haxe";"ds"],"StringMap"), [pt] -> print ctx "{}";
 		| (["haxe";"ds"],"IntMap"), [pt] -> print ctx "{}";
 		| (["haxe";"ds"],"ObjectMap"), [pt] -> print ctx "{}";
-		| ([],"Array"), [pt] -> print ctx "HxArray.new";
+		| ([],"Array"), [pt] -> print ctx "[]";
 		| _ -> 
 		    print ctx "%s.new" (s_path ctx true c.cl_path e.epos);
 		    show_args ctx el;
@@ -1162,7 +1163,7 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 		  newline ctx;
 		  let tstr = type_str ctx v.v_type e.epos in
 		  if tstr <> "*" then
-		    print ctx "rescue %s => %s" (type_str ctx v.v_type e.epos) (s_ident v.v_name)
+		    print ctx "rescue hx_exception_class(%s) => %s" (type_str ctx v.v_type e.epos) (s_ident v.v_name)
 		  else
 		    print ctx "rescue => %s" (s_ident v.v_name);
 		  gen_expr ~preblocked:true ctx e;
@@ -1591,20 +1592,6 @@ let generate_main ctx inits reqs com =
   spr ctx "def _hx_iterator(o) return lambda{ (o.class == Array) ? ::Rb::RubyIterator.new(o) : ((o.respond_to? 'iterator') ? o.iterator : o)} end";
   newline ctx;
   spr ctx "def _hx_call(o,k) ((o.respond_to? k) ? o.method(k).call : o[k].call) end"; *)
-  newline ctx;
-  spr ctx "# a band-aid for ruby accepting negative array indices";
-  newline ctx;
-  spr ctx "class HxArray < Array";
-  newline ctx;
-  spr ctx "  def [](i) ((i<0) ? nil : super(i)) end";
-  newline ctx;
-  spr ctx "end";
-  newline ctx;
-  spr ctx "def _hx_ushr(x,ct) (x >> ct) | (x << (32 - ct)) & 0xFFFFFFFF end";
-  newline ctx;
-  spr ctx "def _hx_str(x) (x.nil? ? 'null' : x.to_s) end";
-  newline ctx;
-  spr ctx "def _hx_add(x,y) (((x.is_a? String)||(y.is_a? String)) ? (_hx_str(x)+_hx_str(y)) : (x+y)) end";
   newline ctx;
   List.iter (fun c ->
     newline ctx;
