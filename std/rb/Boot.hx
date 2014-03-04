@@ -39,6 +39,7 @@ def hx_exception_class(c)
   $hx_exception_classes[c.name] ||= Class.new(RuntimeError) do
     Object.const_set((c.name.split(/::/).old_access(-1)||'') + 'HaxeException',self)
     def initialize(target) @target = target; end
+    def get_target() @target; end
     def method_missing(name, *args, &block)
       @target.send(name, *args, &block)
     end

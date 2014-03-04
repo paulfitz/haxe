@@ -1025,9 +1025,8 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 		concat ctx "," (gen_value ctx) el;
 		spr ctx "]"
 	| TThrow e ->
-		spr ctx "raise hx_exception(";
+		spr ctx "raise ";
 		gen_value ctx e;
-		spr ctx ")";
 	| TVars [] ->
 		()
 	| TVars vl ->
@@ -1163,9 +1162,10 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 		  newline ctx;
 		  let tstr = type_str ctx v.v_type e.epos in
 		  if tstr <> "*" then
-		    print ctx "rescue hx_exception_class(%s) => %s" (type_str ctx v.v_type e.epos) (s_ident v.v_name)
+		    print ctx "rescue %s => %s" (type_str ctx v.v_type e.epos) (s_ident v.v_name)
 		  else
 		    print ctx "rescue => %s" (s_ident v.v_name);
+		  newline ctx;
 		  gen_expr ~preblocked:true ctx e;
 			  ) catchs;
 	| TPatMatch dt -> assert false
@@ -1537,7 +1537,7 @@ let generate_class ctx c =
 	let pack = open_block ctx in
 	print ctx "  %s%s%s %s " (final c.cl_meta) (match c.cl_dynamic with None -> "" | Some _ -> if c.cl_interface then "" else "" (* "dynamic " *)) (if c.cl_interface then "class" else "class") (tweak_class_name (snd c.cl_path));
 	(match c.cl_super with
-	| None -> ()
+	| None -> print ctx "< RuntimeError "
 	| Some (csup,_) -> print ctx "< %s " (s_path ctx true csup.cl_path c.cl_pos));
 	(match c.cl_implements with
 	| [] -> ()
@@ -1609,7 +1609,7 @@ let generate_enum ctx e =
 	ctx.local_types <- List.map snd e.e_types;
 	let pack = open_block ctx in
 	let ename = snd e.e_path in
-	print ctx "  class %s" ename;
+	print ctx "  class %s < RuntimeError" ename;
 	let cl = open_block ctx in
 	newline ctx;
 	print ctx "ISENUM__ = true";

@@ -207,7 +207,7 @@ class Bytes {
 			return new String(b, pos, len, "UTF-8")
 		catch (e:Dynamic) throw e;
 		#elseif rb
-		return untyped  __dotcall__(b,"byteslice",pos,len);
+		return untyped  __dotcall__(untyped __dotcall__(b,"byteslice",pos,len),"force_encoding","UTF-8");
 		#else
 		var s = "";
 		var b = b;
@@ -292,7 +292,7 @@ class Bytes {
 		#elseif java
 		return new Bytes(length, new java.NativeArray(length));
 		#elseif rb
-		return new Bytes(length, untyped (" " * length));
+		return new Bytes(length, untyped (__js__('0.chr.force_encoding("ASCII-8BIT")') * length));
 		#else
 		var a = new Array();
 		for( i in 0...length )
@@ -326,7 +326,7 @@ class Bytes {
 		}
 		catch (e:Dynamic) throw e;
 		#elseif rb
-		return new Bytes(untyped __dotcall__(s,"bytesize"), untyped s);
+		return new Bytes(untyped __dotcall__(s,"bytesize"), untyped __dotcall__(s,"dup.force_encoding(\"ASCII-8BIT\")"));
 		#else
 		var a = new Array();
 		// utf8-decode
