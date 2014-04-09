@@ -51,6 +51,8 @@ class ImportAll {
 			if( !Context.defined("hl") ) return;
 		case "lua":
 			if( !Context.defined("lua") ) return;
+		case "rb":
+			if( !Context.defined("rb") ) return;
 		case "tools":
 			return;
 		case "build-tool":
