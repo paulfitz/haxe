@@ -24,11 +24,11 @@ import rb.Boot;
 @:keepInit
 @:coreApi class Std {
 
-  public static function is( v : Dynamic, t : Dynamic ) : Bool {
-    return untyped rb.Boot.__instanceof(v,t);
-  }
-	
-	public static inline function instance<T>( v : { }, c : Class<T> ) : T {
+	public static function is( v : Dynamic, t : Dynamic ) : Bool {
+		return untyped rb.Boot.__instanceof(v,t);
+	}
+
+	public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
 		return untyped __instanceof__(v, c) ? cast v : null;
 	}
 
