@@ -126,6 +126,8 @@ genneko.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
 
 genphp.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
 
+genrb.cmx: type.cmx common.cmx ast.cmx codegen.cmx
+
 genswf.cmx: type.cmx genswf9.cmx genswf8.cmx common.cmx ast.cmx
 
 genswf8.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
@@ -138,7 +140,7 @@ interp.cmx: typecore.cmx type.cmx lexer.cmx genneko.cmx common.cmx codegen.cmx a
 
 matcher.cmx: optimizer.cmx codegen.cmx typecore.cmx type.cmx typer.cmx common.cmx ast.cmx
 
-main.cmx: filters.cmx matcher.cmx typer.cmx typeload.cmx typecore.cmx type.cmx parser.cmx optimizer.cmx lexer.cmx interp.cmx genxml.cmx genswf.cmx genphp.cmx genneko.cmx genjs.cmx gencpp.cmx genas3.cmx common.cmx codegen.cmx ast.cmx gencommon.cmx genjava.cmx gencs.cmx version.cmx
+main.cmx: filters.cmx matcher.cmx typer.cmx typeload.cmx typecore.cmx type.cmx parser.cmx optimizer.cmx lexer.cmx interp.cmx genxml.cmx genswf.cmx genphp.cmx genneko.cmx genjs.cmx gencpp.cmx genas3.cmx common.cmx codegen.cmx ast.cmx gencommon.cmx genjava.cmx gencs.cmx genrb.cmx version.cmx
 
 optimizer.cmx: typecore.cmx type.cmx parser.cmx common.cmx ast.cmx
 
