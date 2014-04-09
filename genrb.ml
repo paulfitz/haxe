@@ -68,12 +68,12 @@ let is_special_compare e1 e2 =
 	| TInst ({ cl_path = [],"Xml" } as c,_) , _ | _ , TInst ({ cl_path = [],"Xml" } as c,_) -> Some c
 	| _ -> None
 
-let is_known_nonzero e = 
+let is_known_nonzero e =
   match e.eexpr with
   | TConst(TInt i) -> (Int32.compare i Int32.zero <> 0)
   | _ -> false
 
-let is_known_positive e = 
+let is_known_positive e =
   match e.eexpr with
   | TConst(TInt i) -> (Int32.compare i Int32.zero >= 0)
   | _ -> false
@@ -110,12 +110,12 @@ let reserved =
 	(* "each", "label" : removed (actually allowed in locals and fields accesses) *)
 
 let tweak_class_name n =
-  if Hashtbl.mem reserved n then "Hx" ^ (String.capitalize n) else if (n.[0] == '_') then ("X" ^ (String.capitalize n))  else (String.capitalize n) 
+  if Hashtbl.mem reserved n then "Hx" ^ (String.capitalize n) else if (n.[0] == '_') then ("X" ^ (String.capitalize n))  else (String.capitalize n)
 
 let tweak_package_name n =
   (tweak_class_name n)
 
-let camel_to_underscore n = 
+let camel_to_underscore n =
   let r = Str.regexp "\\([a-z]\\)\\([A-Z]\\)" in
   String.lowercase (Str.global_replace r "\\1_\\2" n)
 
@@ -133,7 +133,7 @@ let s_path ctx stat path p =
 		| "Bool" -> "TrueClass"
 		| "Enum" -> "Class"
 		| "EnumValue" -> "enum"
-		| "Date" -> 
+		| "Date" ->
 		    add_feature ctx "use.date";
 		    "Date"
 		| "Array" -> "HxArray" (* ideally could stay with native Array in a non-strict mode where user promises not to access negative indices *)
@@ -172,7 +172,7 @@ let s_ident m =
     if Hashtbl.mem reserved n then "_" ^ n else n
 
 let s_ident_local ctx m =
-  (* not quite sure if collision is an issue; ruby local vars may be 
+  (* not quite sure if collision is an issue; ruby local vars may be
      indistinguishable from a setter in certain cases, need to think
      about this *)
   (* if Hashtbl.mem ctx.field_names m then
@@ -203,9 +203,9 @@ let rec is_anonym_type t =
 	  | EnumStatics _ -> false
 	  | _ -> true)
 	| TDynamic _ -> true
-	| TAbstract ({ a_path = [],_ },pl) -> 
+	| TAbstract ({ a_path = [],_ },pl) ->
 	    false
-	| TAbstract (a,pl) -> 
+	| TAbstract (a,pl) ->
 	    is_anonym_type (Codegen.Abstract.get_underlying_type a pl)
 	| _ -> false
 
@@ -288,8 +288,8 @@ let rec is_string_type t =
 	| TAbstract (a,pl) -> is_string_type (Codegen.Abstract.get_underlying_type a pl)
 	| _ -> false
 
-let is_string_expr e = 
-  match e.eexpr with 
+let is_string_expr e =
+  match e.eexpr with
   | TConst TNull -> false
   | _ -> is_string_type e.etype
 *)
@@ -339,15 +339,15 @@ let close ctx =
   (* let module_name = (String.concat "::" (List.map tweak_package_name (fst ctx.path))) in *)
   output_string ctx.ch "#!/bin/env ruby\n";
   output_string ctx.ch "# encoding: utf-8\n\n";
-  if has_feature ctx "use.date" then 
+  if has_feature ctx "use.date" then
     output_string ctx.ch "require 'date'\n\n";
   if (List.length module_names) > 0 then begin
-    List.iter (fun name -> 
+    List.iter (fun name ->
       output_string ctx.ch (Printf.sprintf "module %s\n" name)) module_names;
   end;
   output_string ctx.ch (Buffer.contents ctx.buf);
   if (List.length module_names) > 0 then begin
-    List.iter (fun name -> 
+    List.iter (fun name ->
       output_string ctx.ch "\nend") module_names;
   end;
   output_string ctx.ch "\n";
@@ -357,12 +357,12 @@ let gen_local ctx l =
 	ctx.gen_uid <- ctx.gen_uid + 1;
 	if ctx.gen_uid = 1 then l else l ^ string_of_int ctx.gen_uid
 
-let spr ctx s = 
+let spr ctx s =
   ctx.newlined <- false;
   ctx.dirty_line <- true;
   Buffer.add_string ctx.buf s
-  
-let print ctx = 
+
+let print ctx =
   ctx.newlined <- false;
   ctx.dirty_line <- true;
   Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
@@ -382,13 +382,13 @@ let newline ctx =
   loop (Buffer.length ctx.buf - 1);
   ctx.newlined <- nl;
   ctx.dirty_line <- false
-      
-let soft_newline ctx = 
+
+let soft_newline ctx =
   if not ctx.newlined then newline ctx
 
-let softest_newline ctx = 
+let softest_newline ctx =
   if ctx.dirty_line then newline ctx
-      
+
 let block_newline ctx = match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
 	| '}' -> print ctx "\n%s" ctx.tabs
 	| _ -> softest_newline ctx
@@ -398,7 +398,7 @@ let force_block e =
   | TBlock _ -> e
   | _ ->
       mk (TBlock [e]) e.etype e.epos
-      
+
 let rec concat ctx s f = function
 	| [] -> ()
 	| [x] -> f x
@@ -533,7 +533,7 @@ let is_dynamic_iterator ctx e =
 
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
-	| TFloat s -> 
+	| TFloat s ->
 	    spr ctx s;
 	    if (s.[(String.length s)-1] == '.') then spr ctx "0"
 	| TString s -> print ctx "\"%s\"" (Ast.s_escape s)
@@ -601,7 +601,7 @@ let gen_function_header ctx name f params p in_expression =
 	        ctx.in_expression <- old_ie;
 	        ctx.in_block_consumer <- old_ibc;
 	)
-	  
+
 let rec gen_call ctx e el r =
 	match e.eexpr , el with
 	| TCall (x,_) , el ->
@@ -637,15 +637,15 @@ let rec gen_call ctx e el r =
 		spr ctx "typeof ";
 		gen_value ctx e;
 	| TLocal { v_name = "__dotcall__" }, eo :: { eexpr = TConst (TString code) } :: el ->
-	    gen_value_nest ctx eo;	
+	    gen_value_nest ctx eo;
 	    spr ctx ".";
 	    spr ctx code;
 	    show_args ctx el;
 	| TLocal { v_name = "__rescue__" }, [e1;e2] ->
 	    spr ctx "(";
-	    gen_value ctx e1;	
+	    gen_value ctx e1;
 	    spr ctx " rescue ";
-	    gen_value ctx e2;	
+	    gen_value ctx e2;
 	    spr ctx ")";
 	| TLocal { v_name = "__call__" }, { eexpr = TConst (TString code) } :: el ->
 	    spr ctx code;
@@ -762,20 +762,20 @@ let rec gen_call ctx e el r =
 		  spr ctx "super"; (* incomplete; covers common case though of super.samename() *)
 	          show_args ctx el;
 		end else call_expr ctx e el;
-		
+
 and call_expr ctx e el =
   call_expr_begin ctx e;
   show_args ctx el
-    
+
 and call_expr_begin ctx e =
   gen_value ctx e;
   if (match e.eexpr with
-  | TField (_,FStatic(_,f)) when (match f.cf_kind with | Var _ -> true | Method MethDynamic -> true | _ -> false) -> 
+  | TField (_,FStatic(_,f)) when (match f.cf_kind with | Var _ -> true | Method MethDynamic -> true | _ -> false) ->
       true
   | TField (x,f) when field_name f = "iterator" && is_dynamic_iterator ctx e ->
       false
-  | TField (e2,_) when (is_anonym_type e2.etype) ->
-      true
+(*   | TField (e2,_) when (is_anonym_type e2.etype) ->
+      true *)
   | TField (_,_) -> false
   | TFunction _ -> true
   | TArray _ -> true
@@ -857,10 +857,10 @@ and gen_field_access ctx t s =
 		(match !(a.a_status) with
 		| Statics c -> field c
 		| EnumStatics _ -> print ctx ".%s" (s_ident s)
-		| _ -> print ctx "[:%s]" (s_ident s))
-	| TAbstract ({ a_path = [],_ },pl) -> 
+		| _ -> print ctx ".%s" (s_ident s))
+	| TAbstract ({ a_path = [],_ },pl) ->
 	    print ctx ".%s" (s_ident s)
-	| TAbstract (a,pl) -> 
+	| TAbstract (a,pl) ->
 	    gen_field_access ctx (Codegen.Abstract.get_underlying_type a pl) s
 	| _ ->
 	    print ctx ".%s" (s_ident s)
@@ -1034,7 +1034,7 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 		concat ctx ", " (fun (v,eo) ->
 			print ctx "%s" (s_ident_local ctx v.v_name) (*type_str ctx v.v_type e.epos*);
 			match eo with
-			| None -> 
+			| None ->
 			    spr ctx " = nil";
 			| Some e ->
 			    spr ctx " = ";
@@ -1052,7 +1052,7 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 		| (["haxe";"ds"],"IntMap"), [pt] -> print ctx "{}";
 		| (["haxe";"ds"],"ObjectMap"), [pt] -> print ctx "{}";
 		| ([],"Array"), [pt] -> print ctx "HxArray.new";
-		| _ -> 
+		| _ ->
 		    print ctx "%s.new" (s_path ctx true c.cl_path e.epos);
 		    show_args ctx el;
 		);
@@ -1070,7 +1070,7 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 		    newline ctx;
 		    spr ctx "end";
 		| Some e ->
-		    (match e with 
+		    (match e with
 		    | { eexpr = TIf _ } as e2 ->
 			newline ctx;
 			spr ctx "els";
@@ -1137,10 +1137,13 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 		handle_break();
 	| TObjectDecl fields ->
   	        (* if List.length fields > 0 then spr ctx "OpenStruct.new("; *)
-		spr ctx "{ ";
+		(* spr ctx "{ ";
 		concat ctx ", " (fun (f,e) -> print ctx "%s: " (s_ident f); gen_value ctx e) fields;
-		spr ctx "}";
+		spr ctx "}"; *)
   	        (* if List.length fields > 0 then spr ctx ")"; *)
+		spr ctx "OpenStruct.new(";
+		concat ctx "," (fun (f,e) -> print ctx ":%s => " (s_ident f); gen_value ctx e) fields;
+		spr ctx ")"
 	| TFor (v,it,e) ->
 		let handle_break = handle_break ctx e in
 		let tmp = gen_local ctx "_it" in
@@ -1335,7 +1338,7 @@ and gen_value ctx e =
 let final m =
 	if Ast.Meta.has Ast.Meta.Final m then "final " else ""
 
-let set_public ctx public = 
+let set_public ctx public =
   if public && ctx.protected_mode then begin
     soft_newline ctx;
     soft_newline ctx;
@@ -1516,7 +1519,7 @@ let scan_for_inline ctx c k f =
       ctx.has_inlines <- true
   | _ ->
       ()
-	  
+
 let generate_class ctx c =
 	ctx.curclass <- c;
 	define_getset ctx true c;
@@ -1605,6 +1608,8 @@ let generate_main ctx inits reqs com =
   spr ctx "def _hx_str(x) (x.nil? ? 'null' : x.to_s) end";
   newline ctx;
   spr ctx "def _hx_add(x,y) (((x.is_a? String)||(y.is_a? String)) ? (_hx_str(x)+_hx_str(y)) : (x+y)) end";
+  newline ctx;
+  spr ctx "require 'ostruct'";
   newline ctx;
   List.iter (fun c ->
     newline ctx;
