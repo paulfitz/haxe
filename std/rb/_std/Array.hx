@@ -31,6 +31,8 @@ extern class Array<T> {
 	function push(x : T) : Int;
 	function reverse() : Void;
 	function shift() : Null<T>;
+	function indexOf(x : T, ?fromIndex : Int) : Int;
+	function lastIndexOf(x : T, ?fromIndex : Int) : Int;
   inline function slice( pos : Int, ?end : Int ) : Array<T> {
     return untyped __dotcall__(this,"slice",pos,end-pos-1);
   }
