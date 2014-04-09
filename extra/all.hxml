@@ -53,4 +53,9 @@
 
 --next
 
+-rb rb
+-xml rb.xml
+
+--next
+
 -xml cross.xml
