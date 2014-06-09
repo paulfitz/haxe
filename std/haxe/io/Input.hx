@@ -257,6 +257,9 @@ class Input {
 		#elseif php
 			var a = untyped __call__('unpack', 'd', readString(8));
 			return a[1];
+		#elseif rb
+ 			var a = untyped __dotcall__(readString(8),'unpack', 'G');
+ 			return a[0];
 		#elseif (flash || js || python)
 		var bytes = [];
 		bytes.push(readByte());
