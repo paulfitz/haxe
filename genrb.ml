@@ -467,7 +467,7 @@ let rec type_str ctx t p =
 		| _ -> "Vector.<" ^ type_str ctx pt p ^ ">")
 	| TInst (c,_) ->
 		(match c.cl_kind with
-		| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _ -> s_path ctx false c.cl_path p
+		| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _ | KGenericBuild _ -> s_path ctx false c.cl_path p
 		| KTypeParameter _ | KExtension _ | KExpr _ | KMacroType -> "*")
 	| TFun _ ->
 		"Function"
@@ -1027,9 +1027,7 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 	| TThrow e ->
 		spr ctx "raise ";
 		gen_value ctx e;
-	| TVars [] ->
-		()
-	| TVars vl ->
+	| TVar (v,eo) ->
 		(* spr ctx "var "; *)
 		concat ctx ", " (fun (v,eo) ->
 			print ctx "%s" (s_ident_local ctx v.v_name) (*type_str ctx v.v_type e.epos*);
@@ -1045,7 +1043,7 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 				gen_expr ~toplevel:true ctx e;
 			    | _ ->
 				gen_value ctx e;
-				) vl;
+				) [v,eo];
 	| TNew (c,params,el) ->
 		(match c.cl_path, params with
 		| (["haxe";"ds"],"StringMap"), [pt] -> print ctx "{}";
@@ -1281,7 +1279,7 @@ and gen_value ctx e =
 	| TBreak
 	| TContinue ->
 		unsupported e.epos
-	| TVars _
+	| TVar _
 	| TFor _
 	| TWhile _
 	| TThrow _ ->
