@@ -337,7 +337,7 @@ let init infos path main =
 let close ctx =
   let module_names = (List.map tweak_package_name (fst ctx.path)) in
   (* let module_name = (String.concat "::" (List.map tweak_package_name (fst ctx.path))) in *)
-  output_string ctx.ch "#!/bin/env ruby\n";
+  output_string ctx.ch "#!/usr/bin/env ruby\n";
   output_string ctx.ch "# encoding: utf-8\n\n";
   if (List.length module_names) > 0 then begin
     List.iter (fun name -> 
