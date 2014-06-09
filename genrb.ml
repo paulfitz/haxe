@@ -136,7 +136,7 @@ let s_path ctx stat path p =
 		| "Date" -> 
 		    add_feature ctx "use.date";
 		    "Date"
-		| "Array" -> "HxArray" (* ideally could stay with native Array in a non-strict mode where user promises not to access negative indices *)
+		| "Array" -> "Array" (* BUT negative indices will break *)
 		| _ -> (tweak_class_name name))
 	| (["flash"],"FlashXml__") ->
 		"Xml"
@@ -339,8 +339,6 @@ let close ctx =
   (* let module_name = (String.concat "::" (List.map tweak_package_name (fst ctx.path))) in *)
   output_string ctx.ch "#!/bin/env ruby\n";
   output_string ctx.ch "# encoding: utf-8\n\n";
-  if has_feature ctx "use.date" then 
-    output_string ctx.ch "require 'date'\n\n";
   if (List.length module_names) > 0 then begin
     List.iter (fun name -> 
       output_string ctx.ch (Printf.sprintf "module %s\n" name)) module_names;
@@ -1021,9 +1019,9 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 	| TCall (v,el) ->
 		gen_call ctx v el e.etype
 	| TArrayDecl el ->
-		spr ctx "HxArray.new([";
+		spr ctx "[";
 		concat ctx "," (gen_value ctx) el;
-		spr ctx "])"
+		spr ctx "]"
 	| TThrow e ->
 		spr ctx "raise ";
 		gen_value ctx e;
@@ -1049,7 +1047,7 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 		| (["haxe";"ds"],"StringMap"), [pt] -> print ctx "{}";
 		| (["haxe";"ds"],"IntMap"), [pt] -> print ctx "{}";
 		| (["haxe";"ds"],"ObjectMap"), [pt] -> print ctx "{}";
-		| ([],"Array"), [pt] -> print ctx "HxArray.new";
+		| ([],"Array"), [pt] -> print ctx "Array.new";
 		| _ -> 
 		    print ctx "%s.new" (s_path ctx true c.cl_path e.epos);
 		    show_args ctx el;
@@ -1565,15 +1563,12 @@ let generate_class ctx c =
 
 let generate_main ctx inits reqs com =
   ctx.curclass <- { null_class with cl_path = [],"index" };
-  let pack = open_block ctx in
-  spr ctx "  # Hello good evening and welcome to a translation from the original Haxe";
-  newline ctx;
-  spr ctx "  ruby_major, ruby_minor, ruby_patch = RUBY_VERSION.split('.').map{|x| x.to_i}\n";
-  spr ctx "  if ruby_major<1 || (ruby_major==1 && (ruby_minor<9 || (ruby_minor==9 && ruby_patch<3)))\n";
-  spr ctx "    $stderr.puts \"Your current Ruby version is: #{RUBY_VERSION}. Haxe/Ruby generates code for version 1.9.3 or later.\"\n";
-  spr ctx "    Kernel.exit 1\n";
-  spr ctx "  end\n";
-  newline ctx;
+  spr ctx "# Translation requires Ruby >= 1.9.3\n";
+  spr ctx "ruby_major, ruby_minor, ruby_patch = RUBY_VERSION.split('.').map{|x| x.to_i}\n";
+  spr ctx "if ruby_major<1 || (ruby_major==1 && (ruby_minor<9 || (ruby_minor==9 && ruby_patch<3)))\n";
+  spr ctx "  $stderr.puts \"Your current Ruby version is: #{RUBY_VERSION}. Haxe/Ruby generates code for version 1.9.3 or later.\"\n";
+  spr ctx "  Kernel.exit 1\n";
+  spr ctx "end\n";
   let rec chk_features e =
     if is_dynamic_iterator ctx e then add_feature ctx "use.$iterator";
     match e.eexpr with
@@ -1583,27 +1578,10 @@ let generate_main ctx inits reqs com =
 	Type.iter chk_features e
   in
   List.iter chk_features inits;
-  newline ctx;
-  (* spr ctx "# some band-aids until we figure out a better translation for iterators";
-  newline ctx;
-  spr ctx "def _hx_iterator(o) return lambda{ (o.class == Array) ? ::Rb::RubyIterator.new(o) : ((o.respond_to? 'iterator') ? o.iterator : o)} end";
-  newline ctx;
-  spr ctx "def _hx_call(o,k) ((o.respond_to? k) ? o.method(k).call : o[k].call) end"; *)
-  newline ctx;
-  spr ctx "# a band-aid for ruby accepting negative array indices";
-  newline ctx;
-  spr ctx "class HxArray < Array";
-  newline ctx;
-  spr ctx "  def [](i) ((i<0) ? nil : super(i)) end";
-  newline ctx;
-  spr ctx "end";
-  newline ctx;
-  spr ctx "def _hx_ushr(x,ct) (x >> ct) | (x << (32 - ct)) & 0xFFFFFFFF end";
-  newline ctx;
-  spr ctx "def _hx_str(x) (x.nil? ? 'null' : x.to_s) end";
-  newline ctx;
-  spr ctx "def _hx_add(x,y) (((x.is_a? String)||(y.is_a? String)) ? (_hx_str(x)+_hx_str(y)) : (x+y)) end";
-  newline ctx;
+  if has_feature ctx "use.date" then begin
+    newline ctx;
+    print ctx "require 'date'";
+  end;
   List.iter (fun c ->
     newline ctx;
     print ctx "require_relative 'lib/%s'" (req_path c);
@@ -1611,8 +1589,6 @@ let generate_main ctx inits reqs com =
 
   newline ctx;
   List.iter (fun e -> newline ctx; gen_expr ctx e) inits;
-  newline ctx;
-  pack();
   newline ctx
 
 

@@ -22,6 +22,27 @@
 package rb;
 
 class Boot {
+	public static function __init__() : Void {
+		untyped __js__("
+def _hx_ushr(x,ct) (((x<0) ? (x + 0x100000000) : x) >> ct) end
+def _hx_str(x) (x.nil? ? 'null' : x.to_s) end
+def _hx_add(x,y) (((x.is_a? String)||(y.is_a? String)) ? (_hx_str(x)+_hx_str(y)) : (x+y)) end
+def _hx_ord(s) return 0 if s.nil?; s.ord end
+$hx_exception_classes = {}
+def hx_exception_class(c)
+  $hx_exception_classes[c.name] ||= Class.new(RuntimeError) do
+    Object.const_set((c.name.split(/::/).old_access(-1)||'') + 'HaxeException',self)
+    def initialize(target) @target = target; end
+    def method_missing(name, *args, &block)
+      @target.send(name, *args, &block)
+    end
+  end
+end
+def hx_exception(x)
+  hx_exception_class(x.class).new(x)
+end
+");
+	}
 
 	private static function __unhtml(s : String) {
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
