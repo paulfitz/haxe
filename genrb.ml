@@ -123,8 +123,15 @@ let tweak_s_type_path (p,s) = match p with [] -> (tweak_class_name s) | _ -> "::
 
 let req_path (p,s) = match p with [] -> camel_to_underscore(s) | _ -> String.concat "/" (List.map camel_to_underscore p) ^ "/" ^ camel_to_underscore(s)
 
+let fix_for_sym n =
+  let r = Str.regexp "-" in
+  Str.global_replace r "_" n
+
 let name_to_sym n = 
-  ":" ^ n
+  ":" ^ (fix_for_sym n)
+
+let name_to_fwd_sym n = 
+  (fix_for_sym n) ^ ":"
 
 let s_path ctx stat path p =
 	match path with
@@ -535,6 +542,7 @@ let is_dynamic_iterator ctx e =
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
 	| TFloat s -> 
+	    if (s.[0] == '.') then spr ctx "0";
 	    spr ctx s;
 	    if (s.[(String.length s)-1] == '.') then spr ctx "0"
 	| TString s -> print ctx "\"%s\"" (Ast.s_escape s)
@@ -823,22 +831,31 @@ and gen_value_nest ctx e =
 	| _ ->
 		gen_value ctx e
 
-and access_field_tail ctx root s v for_write = 
+and access_field_tail ctx root s v for_write op use_op = 
   if for_write then begin
-    print ctx " = ";
+    if use_op then
+      print ctx " %s " (Ast.s_binop op)
+    else
+      print ctx " = ";
     gen_value ctx v
   end
   
-and access_field ctx root s v for_write known = 
+and access_field ctx root s v for_write known op use_op = 
   if known then begin
     gen_value ctx root;
     print ctx ".%s" (s_ident s);
-    access_field_tail ctx root s v for_write
+    access_field_tail ctx root s v for_write op use_op
   end else begin
     if for_write then begin
       print ctx "_hx_set(";
       gen_value ctx root;
-      print ctx ",%s," (name_to_sym (s_ident s));
+      print ctx ",%s," (name_to_sym (s_ident s));  
+      if use_op then begin
+	print ctx "_hx_get(";
+	gen_value ctx root;
+	print ctx ",%s)" (name_to_sym (s_ident s));
+	print ctx " %s " (Ast.s_binop op);
+      end;
       gen_value ctx v;
       print ctx ")"
     end else begin
@@ -848,7 +865,7 @@ and access_field ctx root s v for_write known =
     end
   end
       
-and gen_field_access ctx root t s v for_write =
+and gen_field_access ctx root t s v for_write op use_op =
   let field c =
     match fst c.cl_path, snd c.cl_path, s with
     | _ ->
@@ -858,25 +875,45 @@ and gen_field_access ctx root t s v for_write =
 	match follow t with
 	| TInst (c,_) -> 
 	    field c;
-	    access_field_tail ctx root s v for_write
+	    access_field_tail ctx root s v for_write op use_op
 	| TDynamic _ -> 
-	    access_field ctx root s v for_write false
+	    access_field ctx root s v for_write false op use_op
 	| TAnon a ->
 	    (match !(a.a_status) with
 		| Statics c -> 
 		    field c;
-		    access_field_tail ctx root s v for_write
+		    access_field_tail ctx root s v for_write op use_op
 		| EnumStatics _ -> 
-		    access_field ctx root s v for_write true
+		    access_field ctx root s v for_write true op use_op
 		| _ -> 
-		    access_field ctx root s v for_write false)
+		    access_field ctx root s v for_write false op use_op)
 	| TAbstract ({ a_path = [],_ },pl) -> 
-	    access_field ctx root s v for_write true
+	    access_field ctx root s v for_write true op use_op
 	| TAbstract (a,pl) -> 
-	    gen_field_access ctx root (Codegen.Abstract.get_underlying_type a pl) s v for_write
+	    gen_field_access ctx root (Codegen.Abstract.get_underlying_type a pl) s v for_write op use_op
 	| _ ->
-	    access_field ctx root s v for_write false
+	    access_field ctx root s v for_write false op use_op
 
+and is_vague t = 
+  match follow t with
+  | TInst (c,_) -> 
+      false
+  | TDynamic _ -> 
+      true
+  | TAnon a ->
+      (match !(a.a_status) with
+      | Statics c -> 
+	  false
+      | EnumStatics _ -> 
+	  true
+      | _ -> 
+	  true)
+  | TAbstract ({ a_path = [],_ },pl) -> 
+      true
+  | TAbstract (a,pl) -> 
+      is_vague (Codegen.Abstract.get_underlying_type a pl)
+  | _ ->
+      true
 	      
 and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e =
         let in_expression = ctx.in_expression in
@@ -909,8 +946,10 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 	    spr ctx ".remainder(";
 	    gen_value ctx e2;
 	    spr ctx ") rescue Float::NAN)";
-	| TBinop (Ast.OpAssign,{ eexpr = TField(e,s) },e2) ->
-	    gen_field_access ctx e e.etype (field_name s) e2 true;
+	| TBinop (Ast.OpAssignOp(_ as op),{ eexpr = TField(e,s) },e2) when (is_vague e.etype) ->
+	    gen_field_access ctx e e.etype (field_name s) e2 true op true;
+	| TBinop (Ast.OpAssign as op,{ eexpr = TField(e,s) },e2) ->
+	    gen_field_access ctx e e.etype (field_name s) e2 true op false;
 	| TBinop (Ast.OpAssignOp(Ast.OpMod),e1,e2) ->
 	    gen_value ctx e1;
 	    spr ctx " = ";
@@ -985,7 +1024,7 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 	        spr ctx ")"
 	| TField (e,s) ->
    	    (* gen_value ctx e; *)
-	    gen_field_access ctx e e.etype (field_name s) e false
+	    gen_field_access ctx e e.etype (field_name s) e false Ast.OpAdd false
 	| TTypeExpr t ->
 	    spr ctx (s_path ctx true (t_path t) e.epos)
 	| TParenthesis e ->
@@ -1097,6 +1136,9 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 			newline ctx;
 			spr ctx "else ";
 			gen_expr ~preblocked:true ~shortenable:false ctx (force_block e)));
+	| TUnop (Ast.Increment,Ast.Postfix,{ eexpr = TField(e,s) }) when (is_vague e.etype) ->
+	    gen_field_access ctx e e.etype (field_name s) (mk (TConst (TInt(1l))) e.etype e.epos) true Ast.OpAdd true;
+							   
 	| TUnop (op,Ast.Postfix,e) when op = Ast.Increment ->
 	    if not(toplevel) then spr ctx "(";
 	    gen_value ctx e;
@@ -1156,7 +1198,7 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 	| TObjectDecl fields ->
   	        (* if List.length fields > 0 then spr ctx "OpenStruct.new("; *)
 		spr ctx "{ ";
-		concat ctx ", " (fun (f,e) -> print ctx "%s: " (s_ident f); gen_value ctx e) fields;
+		concat ctx ", " (fun (f,e) -> print ctx "%s " (name_to_fwd_sym (s_ident f)); gen_value ctx e) fields;
 		spr ctx "}";
   	        (* if List.length fields > 0 then spr ctx ")"; *)
 	| TFor (v,it,e) ->
@@ -1183,8 +1225,10 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 		    print ctx "rescue %s => %s" (type_str ctx v.v_type e.epos) (s_ident v.v_name)
 		  else
 		    print ctx "rescue => %s" (s_ident v.v_name);
-		  gen_expr ~preblocked:true ctx e;
+		  gen_expr ~preblocked:true ~postblocked:true ctx e;
 			  ) catchs;
+	          softest_newline ctx;
+		  spr ctx "end";
 	| TPatMatch dt -> assert false
 	| TSwitch (e,[],Some def) ->
 	      gen_expr ctx def;
@@ -1484,7 +1528,7 @@ let generate_field ctx static f =
 				print ctx "def %s%s=(__v) @%s = __v end" static_prefix id id;
 			| AccCall ->
 				soft_newline ctx;
-				print ctx "def %s%s=(__v) %s(__v); end" static_prefix id ("set_" ^ (s_ident f.cf_name));
+				print ctx "def %s%s=(__v) @%s = __v end" static_prefix id id;
 			| _ -> ());
 			(* print ctx "%sprotected var $%s : %s" (if static then "static " else "") (s_ident f.cf_name) (type_str ctx f.cf_type p); *)
 			gen_init()

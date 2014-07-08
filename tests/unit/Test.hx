@@ -173,7 +173,7 @@ class Test #if swf_mark implements mt.Protect #end {
 		}
 		haxe.Log.trace(msg,pos);
 		reportCount++;
-#if !(java || cs)
+#if !(java || cs || rb)
 		if( reportCount == 50 ) {
 			trace("Too many errors");
 			report = function(msg,?pos) {};
