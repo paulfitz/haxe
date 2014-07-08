@@ -123,6 +123,9 @@ let tweak_s_type_path (p,s) = match p with [] -> (tweak_class_name s) | _ -> "::
 
 let req_path (p,s) = match p with [] -> camel_to_underscore(s) | _ -> String.concat "/" (List.map camel_to_underscore p) ^ "/" ^ camel_to_underscore(s)
 
+let name_to_sym n = 
+  ":" ^ n
+
 let s_path ctx stat path p =
 	match path with
 	| ([],name) ->
@@ -396,7 +399,7 @@ let force_block e =
   | TBlock _ -> e
   | _ ->
       mk (TBlock [e]) e.etype e.epos
-      
+
 let rec concat ctx s f = function
 	| [] -> ()
 	| [x] -> f x
@@ -820,49 +823,61 @@ and gen_value_nest ctx e =
 	| _ ->
 		gen_value ctx e
 
-and gen_field_access ctx t s =
-	let field c =
-		match fst c.cl_path, snd c.cl_path, s with
-(*		| [], "Math", "NaN"
-		| [], "Math", "NEGATIVE_INFINITY"
-		| [], "Math", "POSITIVE_INFINITY"
-		| [], "Math", "isFinite"
-		| [], "Math", "isNaN"
-		| [], "Date", "now"
-		| [], "Date", "fromTime"
-		| [], "Date", "fromString"
-		->
-			print ctx "[\"%s\"]" s
-		| [], "String", "charCodeAt" ->
-			spr ctx "[\"charCodeAtHX\"]"
-		| [], "Array", "map" ->
-			spr ctx "[\"mapHX\"]"
-		| [], "Array", "filter" ->
-			spr ctx "[\"filterHX\"]"
-		| [], "Date", "toString" ->
-			print ctx "[\"toStringHX\"]"
-		| [], "String", "cca" ->
-			print ctx ".charCodeAt"
-		| ["flash";"xml"], "XML", "namespace" ->
-			print ctx ".namespace" *)
-		| _ ->
-			print ctx ".%s" (s_ident s)
-	in
+and access_field_tail ctx root s v for_write = 
+  if for_write then begin
+    print ctx " = ";
+    gen_value ctx v
+  end
+  
+and access_field ctx root s v for_write known = 
+  if known then begin
+    gen_value ctx root;
+    print ctx ".%s" (s_ident s);
+    access_field_tail ctx root s v for_write
+  end else begin
+    if for_write then begin
+      print ctx "_hx_set(";
+      gen_value ctx root;
+      print ctx ",%s," (name_to_sym (s_ident s));
+      gen_value ctx v;
+      print ctx ")"
+    end else begin
+      print ctx "_hx_get(";
+      gen_value ctx root;
+      print ctx ",%s)" (name_to_sym (s_ident s))
+    end
+  end
+      
+and gen_field_access ctx root t s v for_write =
+  let field c =
+    match fst c.cl_path, snd c.cl_path, s with
+    | _ ->
+	gen_value ctx root;
+	print ctx ".%s" (s_ident s)
+  in
 	match follow t with
-	| TInst (c,_) -> field c
-	| TDynamic _ -> print ctx "[:%s]" (s_ident s)
+	| TInst (c,_) -> 
+	    field c;
+	    access_field_tail ctx root s v for_write
+	| TDynamic _ -> 
+	    access_field ctx root s v for_write false
 	| TAnon a ->
-		(match !(a.a_status) with
-		| Statics c -> field c
-		| EnumStatics _ -> print ctx ".%s" (s_ident s)
-		| _ -> print ctx "[:%s]" (s_ident s))
+	    (match !(a.a_status) with
+		| Statics c -> 
+		    field c;
+		    access_field_tail ctx root s v for_write
+		| EnumStatics _ -> 
+		    access_field ctx root s v for_write true
+		| _ -> 
+		    access_field ctx root s v for_write false)
 	| TAbstract ({ a_path = [],_ },pl) -> 
-	    print ctx ".%s" (s_ident s)
+	    access_field ctx root s v for_write true
 	| TAbstract (a,pl) -> 
-	    gen_field_access ctx (Codegen.Abstract.get_underlying_type a pl) s
+	    gen_field_access ctx root (Codegen.Abstract.get_underlying_type a pl) s v for_write
 	| _ ->
-	    print ctx ".%s" (s_ident s)
+	    access_field ctx root s v for_write false
 
+	      
 and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e =
         let in_expression = ctx.in_expression in
 	ctx.in_expression <- false;
@@ -894,6 +909,8 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 	    spr ctx ".remainder(";
 	    gen_value ctx e2;
 	    spr ctx ") rescue Float::NAN)";
+	| TBinop (Ast.OpAssign,{ eexpr = TField(e,s) },e2) ->
+	    gen_field_access ctx e e.etype (field_name s) e2 true;
 	| TBinop (Ast.OpAssignOp(Ast.OpMod),e1,e2) ->
 	    gen_value ctx e1;
 	    spr ctx " = ";
@@ -961,9 +978,14 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 	    spr ctx "@";
 	    spr ctx (s_ident (field_name s))
 	      (* gen_field_access ctx e.etype (field_name s) *)
+	| TField (e,(FClosure _ as s)) ->
+		gen_value ctx e;
+		spr ctx ".method(";
+		spr ctx (name_to_sym (field_name s));
+	        spr ctx ")"
 	| TField (e,s) ->
-   		gen_value ctx e;
-		gen_field_access ctx e.etype (field_name s)
+   	    (* gen_value ctx e; *)
+	    gen_field_access ctx e e.etype (field_name s) e false
 	| TTypeExpr t ->
 	    spr ctx (s_path ctx true (t_path t) e.epos)
 	| TParenthesis e ->

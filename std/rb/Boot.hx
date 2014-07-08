@@ -41,6 +41,24 @@ end
 def hx_exception(x)
   hx_exception_class(x.class).new(x)
 end
+def _hx_get(o,k)
+  begin
+    o[k] 
+  rescue 
+    if o.respond_to?(k.to_s + \"=\")
+      o.send(k)
+    else
+      o.method(k)
+    end
+  end
+end
+def _hx_set(o,k,v)
+  begin
+    o[k] = v
+  rescue 
+    o.send(k.to_s + \"=\",v)
+  end
+end
 ");
 	}
 
@@ -50,7 +68,7 @@ end
 
 	private static function __trace(v,i) {
 	  if (i!=null) {
-	    untyped __js__("puts \"#{v} #{i.inspect}\"");
+	    untyped __js__("puts \"#{i[:file_name]}:%05d #{v}\" % i[:line_number]");
 	  } else {
 	    untyped __js__("puts v");
 	  }
