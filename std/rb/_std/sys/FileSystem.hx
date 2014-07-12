@@ -31,7 +31,7 @@ private enum FileKind {
 class FileSystem {
 
 	public static inline function exists( path : String ) : Bool {
-		return untyped __call__("file_exists", path);
+		return untyped __call__("File.exist?", path);
 	}
 
 	public static inline function rename( path : String, newPath : String ) : Void {
