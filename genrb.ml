@@ -1422,20 +1422,6 @@ let generate_field ctx static f =
 					if o then print ctx " = %s" (default_value tstr);
 				) args;
 				print ctx ") puts \"Abstract %s.%s called\" end" (tweak_class_name (snd ctx.curclass.cl_path)) (loop f.cf_meta);
-			| _ when is_getset ->
-				let t = type_str ctx f.cf_type p in
-				let id = s_ident f.cf_name in
-				(match f.cf_kind with
-				| Var v ->
-					(match v.v_read with
-					| AccNormal -> print ctx "function get %s() : %s;" id t;
-					| AccCall -> print ctx "function %s() : %s;" ("get_" ^ f.cf_name) t;
-					| _ -> ());
-					(match v.v_write with
-					| AccNormal -> print ctx "function set %s( __v : %s ) : void;" id t;
-					| AccCall -> print ctx "function %s( __v : %s ) : %s;" ("set_" ^ f.cf_name) t t;
-					| _ -> ());
-				| _ -> assert false)
 			| _ -> ()
 		else
 		let gen_init () = match f.cf_expr with
