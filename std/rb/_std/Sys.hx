@@ -89,8 +89,7 @@
 			for( a in args )
 				cmd += " "+escapeArgument(a);
 		}
-		var result = 0;
-		untyped __call__("system", cmd, result);
+		var result = untyped __call__("system", cmd) ? 0 : 1;
 		return result;
 	}
 
