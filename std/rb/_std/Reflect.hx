@@ -51,7 +51,7 @@
 		if( o.__properties__ && (tmp=o.__properties__["set_"+field]) ) o[tmp](value) else o[field] = __define_feature__("Reflect.setProperty",value);
 	}
 
-	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
+	public static function callMethod( o : Dynamic, func :  haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic untyped {
 	  //return func.apply(o,args);
 	  return untyped __dotcall__(__dotcall__(o,"method",func),"call",__js__("*args"));
 	}
