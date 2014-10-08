@@ -55,7 +55,7 @@ type context = {
 
 let is_var_field f =
 	match f with
-	| FStatic (_,f) | FInstance (_,f) ->
+	| FStatic (_,f) | FInstance (_,_,f) ->
 		(match f.cf_kind with Var _ -> true | _ -> false)
 	| _ ->
 		false
@@ -206,7 +206,7 @@ let rec is_anonym_type t =
 	| TAbstract ({ a_path = [],_ },pl) -> 
 	    false
 	| TAbstract (a,pl) -> 
-	    is_anonym_type (Codegen.Abstract.get_underlying_type a pl)
+	    is_anonym_type (Abstract.get_underlying_type a pl)
 	| _ -> false
 
 let is_anonym_expr e = is_anonym_type e.etype
@@ -228,7 +228,7 @@ let rec is_string_type t =
 	   (match !(a.a_status) with
 	   | Statics ({cl_path = ([], "String")}) -> true
 	   | _ -> false)
-	| TAbstract (a,pl) -> is_string_type (Codegen.Abstract.get_underlying_type a pl)
+	| TAbstract (a,pl) -> is_string_type (Abstract.get_underlying_type a pl)
 	| _ -> false
 
 let is_string_expr e = is_string_type e.etype
@@ -433,7 +433,7 @@ let rec type_str ctx t p =
 	| TEnum _ | TInst _ when List.memq t ctx.local_types ->
 		"*"
 	| TAbstract ({ a_impl = Some _ } as a,pl) ->
-		type_str ctx (apply_params a.a_types pl a.a_this) p
+		type_str ctx (apply_params a.a_params pl a.a_this) p
 	| TAbstract (a,_) ->
 		(match a.a_path with
 		| [], "Void" -> "void"
@@ -489,14 +489,14 @@ let rec type_str ctx t p =
 				| TEnum ({ e_path = [],"Bool" },_) -> "*"
 				| _ -> type_str ctx t p)
 			| _ -> assert false);
-		| _ -> type_str ctx (apply_params t.t_types args t.t_type) p)
+		| _ -> type_str ctx (apply_params t.t_params args t.t_type) p)
 	| TLazy f ->
 		type_str ctx ((!f)()) p
 
 let rec iter_switch_break in_switch e =
 	match e.eexpr with
 	| TFunction _ | TWhile _ | TFor _ -> ()
-	| TSwitch _ | TPatMatch _ when not in_switch -> iter_switch_break true e
+	| TSwitch _ when not in_switch -> iter_switch_break true e
 	| TBreak when in_switch -> raise Exit
 	| _ -> iter (iter_switch_break in_switch) e
 
@@ -859,7 +859,7 @@ and gen_field_access ctx t s =
 	| TAbstract ({ a_path = [],_ },pl) -> 
 	    print ctx ".%s" (s_ident s)
 	| TAbstract (a,pl) -> 
-	    gen_field_access ctx (Codegen.Abstract.get_underlying_type a pl) s
+	    gen_field_access ctx (Abstract.get_underlying_type a pl) s
 	| _ ->
 	    print ctx ".%s" (s_ident s)
 
@@ -1163,7 +1163,6 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 		    print ctx "rescue => %s" (s_ident v.v_name);
 		  gen_expr ~preblocked:true ctx e;
 			  ) catchs;
-	| TPatMatch dt -> assert false
 	| TSwitch (e,[],Some def) ->
 	      gen_expr ctx def;
 	| TSwitch (e,cases,def) ->
@@ -1320,7 +1319,6 @@ and gen_value ctx e =
 			match def with None -> None | Some e -> Some (assign e)
 		)) e.etype e.epos);
 		v()
-	| TPatMatch dt -> assert false
 	| TTry (b,catchs) ->
 		let v = value true in
 		gen_expr ctx (mk (TTry (block (assign b),
@@ -1503,7 +1501,7 @@ let generate_class ctx c =
 	ctx.curclass <- c;
 	define_getset ctx true c;
 	define_getset ctx false c;
-	ctx.local_types <- List.map snd c.cl_types;
+	ctx.local_types <- List.map snd c.cl_params;
         ctx.protected_mode <- false;
         ctx.newlined <- true;
 	ctx.dirty_line <- false;
@@ -1579,7 +1577,7 @@ let generate_main ctx inits reqs com =
 
 
 let generate_enum ctx e =
-	ctx.local_types <- List.map snd e.e_types;
+	ctx.local_types <- List.map snd e.e_params;
 	let pack = open_block ctx in
 	let ename = snd e.e_path in
 	print ctx "  class %s" ename;
