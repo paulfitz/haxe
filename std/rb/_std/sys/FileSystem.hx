@@ -63,6 +63,10 @@ class FileSystem {
 			return p;
 	}
 
+        public static function absPath ( relPath : String ) : String {
+	  return null;
+        }
+
 	static function kind( path : String ) : FileKind {
 		var k = untyped __call__("filetype", path);
 		switch(k) {
