@@ -537,6 +537,7 @@ let is_dynamic_iterator ctx e =
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
 	| TFloat s -> 
+	    if (s.[0] == '.') then spr ctx "0";
 	    spr ctx s;
 	    if (s.[(String.length s)-1] == '.') then spr ctx "0"
 	| TString s -> print ctx "\"%s\"" (Ast.s_escape s)
