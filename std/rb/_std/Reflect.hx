@@ -53,7 +53,8 @@
 
 	public static function callMethod( o : Dynamic, func :  haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic untyped {
 	  //return func.apply(o,args);
-	  return untyped __dotcall__(__dotcall__(o,"method",func),"call",__js__("*args"));
+	  //return untyped __dotcall__(__dotcall__(o,"method",func),"call",__js__("*args"));
+	  return untyped __dotcall__(func,"call",__js__("*args"));
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {
