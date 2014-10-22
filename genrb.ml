@@ -171,6 +171,11 @@ let s_ident m =
   else
     if Hashtbl.mem reserved n then "_" ^ n else n
 
+let s_ident_hash m =
+  let r = Str.regexp "^[_a-zA-Z0-9]+$" in
+  if (Str.string_match r m 0) then (s_ident m)^":" else "\""^m^"\""^" =>"
+  
+
 let s_ident_local ctx m =
   (* not quite sure if collision is an issue; ruby local vars may be 
      indistinguishable from a setter in certain cases, need to think
@@ -1134,7 +1139,7 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 	| TObjectDecl fields ->
   	        (* if List.length fields > 0 then spr ctx "OpenStruct.new("; *)
 		spr ctx "{ ";
-		concat ctx ", " (fun (f,e) -> print ctx "%s: " (s_ident f); gen_value ctx e) fields;
+		concat ctx ", " (fun (f,e) -> print ctx "%s " (s_ident_hash f); gen_value ctx e) fields;
 		spr ctx "}";
   	        (* if List.length fields > 0 then spr ctx ")"; *)
 	| TFor (v,it,e) ->
@@ -1153,16 +1158,18 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 		spr ctx "end";
 		handle_break();
 	| TTry (e,catchs) ->
-		gen_expr ~postblocked:true ctx e;
-		List.iter (fun (v,e) ->
-		  newline ctx;
-		  let tstr = type_str ctx v.v_type e.epos in
-		  if tstr <> "*" then
-		    print ctx "rescue %s => %s" (type_str ctx v.v_type e.epos) (s_ident v.v_name)
-		  else
-		    print ctx "rescue => %s" (s_ident v.v_name);
-		  gen_expr ~preblocked:true ctx e;
-			  ) catchs;
+	    gen_expr ~postblocked:true ctx e;
+	    List.iter (fun (v,e) ->
+	      newline ctx;
+	      let tstr = type_str ctx v.v_type e.epos in
+	      if tstr <> "*" then
+		print ctx "rescue %s => %s" (type_str ctx v.v_type e.epos) (s_ident v.v_name)
+	      else
+		print ctx "rescue => %s" (s_ident v.v_name);
+	      gen_expr ~preblocked:true ~postblocked:true ctx e;
+		      ) catchs;
+	    softest_newline ctx;
+	    spr ctx "end";
 	| TSwitch (e,[],Some def) ->
 	      gen_expr ctx def;
 	| TSwitch (e,cases,def) ->
@@ -1541,6 +1548,8 @@ let generate_class ctx c =
 	List.iter (generate_field ctx true) c.cl_ordered_statics;
 	cl();
 	newline ctx;
+	spr ctx "haxe_me";
+	newline ctx;
 	spr ctx "end";
 	pack();
 	newline ctx
@@ -1553,6 +1562,21 @@ let generate_main ctx inits reqs com =
   spr ctx "  $stderr.puts \"Your current Ruby version is: #{RUBY_VERSION}. Haxe/Ruby generates code for version 1.9.3 or later.\"\n";
   spr ctx "  Kernel.exit 1\n";
   spr ctx "end\n";
+  spr ctx "def haxe_me\n";
+  spr ctx "  _haxe_vars_ = {}\n";
+  spr ctx "  instance_methods(false).grep(/=$/).each do |v|\n";
+  spr ctx "    _haxe_vars_[v.to_s[0..-2].to_sym] = ('@'+v.to_s[0..-2]).to_sym\n";
+  spr ctx "  end\n";
+  spr ctx "  define_method(:[]) do |x|\n";
+  spr ctx "    tag = _haxe_vars_[x]\n";
+  spr ctx "    return instance_variable_get(tag) if tag\n";
+  spr ctx "    method x\n";
+  spr ctx "  end\n";
+  spr ctx "  define_method(:[]=) do |x,y|\n";
+  spr ctx "    instance_variable_set(_haxe_vars_[x],y)\n";
+  spr ctx "  end\n";
+  spr ctx "end\n";
+
   let rec chk_features e =
     if is_dynamic_iterator ctx e then add_feature ctx "use.$iterator";
     match e.eexpr with
