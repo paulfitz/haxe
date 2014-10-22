@@ -1335,7 +1335,7 @@ and gen_value ctx e =
 		v()
 
 let final m =
-	if Ast.Meta.has Ast.Meta.Final m then "final " else ""
+	if Ast.Meta.has Ast.Meta.Final m then "" else ""
 
 let set_public ctx public = 
   if public && ctx.protected_mode then begin
