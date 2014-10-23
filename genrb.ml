@@ -135,9 +135,12 @@ let camel_to_underscore n =
   let r = Str.regexp "\\([a-z]\\)\\([A-Z]\\)" in
   String.lowercase (Str.global_replace r "\\1_\\2" n)
 
+let camel_to_underscore_tweaked n = 
+  (camel_to_underscore (tweak_package_name n))
+
 let tweak_s_type_path (p,s) = match p with [] -> (tweak_class_name s) | _ -> "::" ^ String.concat "::" (List.map tweak_package_name p) ^ "::" ^ (tweak_class_name s)
 
-let req_path (p,s) = match p with [] -> camel_to_underscore(s) | _ -> String.concat "/" (List.map camel_to_underscore p) ^ "/" ^ camel_to_underscore(s)
+let req_path (p,s) = match p with [] -> camel_to_underscore_tweaked(s) | _ -> String.concat "/" (List.map camel_to_underscore_tweaked(p)) ^ "/" ^ camel_to_underscore_tweaked(s)
 
 let s_path ctx stat path p =
 	match path with
@@ -324,9 +327,9 @@ let rec create_dir acc = function
 
 let init infos path main =
         let fst_path = if main then (fst path) else ("lib" :: (fst path)) in
-	let dir = (infos.com.file :: (List.map camel_to_underscore fst_path)) in
+	let dir = (infos.com.file :: (List.map camel_to_underscore_tweaked fst_path)) in
 	create_dir [] dir;
-	let ch = open_out (String.concat "/" dir ^ "/" ^ (camel_to_underscore (snd path)) ^ ".rb") in
+	let ch = open_out (String.concat "/" dir ^ "/" ^ (camel_to_underscore_tweaked (snd path)) ^ ".rb") in
 	let imports = Hashtbl.create 0 in
 	Hashtbl.add imports (snd path) [fst path];
 	{
@@ -991,6 +994,9 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 	    spr ctx "@";
 	    spr ctx (s_ident (field_name s))
 	      (* gen_field_access ctx e.etype (field_name s) *)
+	| TField (e2,s) when field_name s = "length" ->
+   	    gen_value ctx e2;
+	    spr ctx ".length"   
 	| TField (e2,s) ->
    		gen_value ctx e2;
 		gen_field_access ctx e2.etype (field_name s) s e
