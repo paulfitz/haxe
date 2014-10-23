@@ -23,6 +23,11 @@
 open Type
 open Common
 
+(* let s_expr = s_expr (s_type (print_context()))
+let s_expr_pretty = s_expr_pretty "" (s_type (print_context()))
+let debug e = print_endline (s_expr e)
+let debug_pretty s e = Printf.printf "%s %s\n" s (s_expr_pretty e) *)
+
 type context_infos = {
 	com : Common.context;
 }
@@ -51,12 +56,23 @@ type context = {
         mutable field_names : (string,bool) Hashtbl.t;
         mutable has_statics : bool;
         mutable has_inlines : bool;
+        mutable in_call : bool;
 }
 
 let is_var_field f =
 	match f with
-	| FStatic (_,f) | FInstance (_,_,f) ->
-		(match f.cf_kind with Var _ -> true | _ -> false)
+	| FStatic (_,f2) | FInstance (_,_,f2) ->
+		(match f2.cf_kind with Var _ -> true | _ -> false)
+	| _ ->
+		false
+
+let is_autocall_field f =
+	match f with
+	| FStatic (_,f2) | FInstance (_,_,f2) ->
+		(match f2.cf_kind with 
+		| Method MethDynamic -> false 
+		| Method _ -> true
+		| _ -> false)
 	| _ ->
 		false
 
@@ -337,6 +353,7 @@ let init infos path main =
 	        field_names = Hashtbl.create 0;
 	        has_statics = false;
 	        has_inlines = false;
+                in_call = false;
 	}
 
 let close ctx =
@@ -772,7 +789,9 @@ and call_expr ctx e el =
   show_args ctx el
     
 and call_expr_begin ctx e =
+  ctx.in_call <- true;
   gen_value ctx e;
+  ctx.in_call <- false;
   if (match e.eexpr with
   | TField (_,FStatic(_,f)) when (match f.cf_kind with | Var _ -> true | Method MethDynamic -> true | _ -> false) -> 
       true
@@ -826,7 +845,8 @@ and gen_value_nest ctx e =
 	| _ ->
 		gen_value ctx e
 
-and gen_field_access ctx t s =
+and gen_field_access ctx t s f e =
+  (*Printf.printf "field access for %s --- %s\n" (Type.s_expr (fun(t) -> Type.s_type (print_context()) t) e) s;*)
 	let field c =
 		match fst c.cl_path, snd c.cl_path, s with
 (*		| [], "Math", "NaN"
@@ -852,20 +872,21 @@ and gen_field_access ctx t s =
 		| ["flash";"xml"], "XML", "namespace" ->
 			print ctx ".namespace" *)
 		| _ ->
-			print ctx ".%s" (s_ident s)
+			print ctx ".%s"(s_ident s)
 	in
 	match follow t with
 	| TInst (c,_) -> field c
 	| TDynamic _ -> print ctx "[:%s]" (s_ident s)
 	| TAnon a ->
 		(match !(a.a_status) with
-		| Statics c -> field c
+		| Statics c -> 
+		    if ((is_autocall_field f) && (not(ctx.in_call))) then print ctx "[:%s]" (s_ident s) else field c
 		| EnumStatics _ -> print ctx ".%s" (s_ident s)
 		| _ -> print ctx "[:%s]" (s_ident s))
 	| TAbstract ({ a_path = [],_ },pl) -> 
 	    print ctx ".%s" (s_ident s)
 	| TAbstract (a,pl) -> 
-	    gen_field_access ctx (Abstract.get_underlying_type a pl) s
+	    gen_field_access ctx (Abstract.get_underlying_type a pl) s f e
 	| _ ->
 	    print ctx ".%s" (s_ident s)
 
@@ -967,9 +988,9 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 	    spr ctx "@";
 	    spr ctx (s_ident (field_name s))
 	      (* gen_field_access ctx e.etype (field_name s) *)
-	| TField (e,s) ->
-   		gen_value ctx e;
-		gen_field_access ctx e.etype (field_name s)
+	| TField (e2,s) ->
+   		gen_value ctx e2;
+		gen_field_access ctx e2.etype (field_name s) s e
 	| TTypeExpr t ->
 	    spr ctx (s_path ctx true (t_path t) e.epos)
 	| TParenthesis e ->
@@ -1575,6 +1596,11 @@ let generate_main ctx inits reqs com =
   spr ctx "  end\n";
   spr ctx "  define_method(:[]=) do |x,y|\n";
   spr ctx "    instance_variable_set(_haxe_vars_[x],y)\n";
+  spr ctx "  end\n";
+  spr ctx "  class << self\n";
+  spr ctx "    define_method(:[]) do |x|\n";
+  spr ctx "      method x\n";
+  spr ctx "    end\n";
   spr ctx "  end\n";
   spr ctx "end\n";
 
