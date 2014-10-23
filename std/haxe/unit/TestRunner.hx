@@ -98,6 +98,9 @@ class TestRunner {
 			python.Lib.print(v);
 		#elseif (hl || lua)
 			Sys.print(Std.string(v));
+		#elseif rb
+			var str:String = v;
+			untyped __js__("print(str)");
 		#end
 	}
 
