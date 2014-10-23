@@ -756,6 +756,9 @@ let rec gen_call ctx e el r =
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")"
+	| TLocal { v_name = "`trace" }, [e;infos] ->
+	    spr ctx "puts ";
+	    gen_value ctx e
 	| TLocal x, el when (match x.v_type with TFun _ -> true | TAnon _ -> true | _ -> false) ->
 		spr ctx "(";
 		gen_value ctx e;

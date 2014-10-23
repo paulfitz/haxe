@@ -48,8 +48,9 @@ end
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
 	}
 
-	private static function __trace(v,i) {
-	  untyped __js__("puts v");
+        @:keep
+        private static function __trace(v,i) {
+	  untyped __call__("puts",v);
 	  /*
 	  if (i!=null) {
 	    untyped __js__("puts \"#{v} #{i.inspect}\"");
