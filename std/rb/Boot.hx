@@ -49,11 +49,14 @@ end
 	}
 
 	private static function __trace(v,i) {
+	  untyped __js__("puts v");
+	  /*
 	  if (i!=null) {
 	    untyped __js__("puts \"#{v} #{i.inspect}\"");
 	  } else {
 	    untyped __js__("puts v");
 	  }
+	  */
 	}
 
 	private static function __clear_trace() {
