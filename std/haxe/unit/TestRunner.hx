@@ -86,6 +86,9 @@ class TestRunner {
 			untyped __java__("java.lang.System.out.print(str)");
 		#elseif python
 			python.Lib.print(v);
+		#elseif rb
+			var str:String = v;
+			untyped __js__("print(str)");
 		#end
 	}
 
