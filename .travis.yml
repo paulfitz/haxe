@@ -7,4 +7,17 @@ install:
   - travis_retry sudo apt-get update -qq; travis_retry sudo apt-get install ocaml -qq
 
 script:
+  - sed -i "s|INSTALL_DIR=/usr|INSTALL_DIR=$PWD/dist/haxerb|" Makefile
+  - mkdir -p dist/haxerb/bin
   - make
+  - make install
+  - cd dist; zip -r haxerb haxerb
+deploy:
+  provider: releases
+  api_key:
+    secure: L/6SW9cEMtHJHA3+Z3vApcRSF0B6MBSUgCyMRk94+5RoToZuJesvJKX7v5nOzbkbUUWMWlnwJtJH9xrw20ckvAsTc4Le7ZLl6hCYiiH8kzSO0b7OCEeVLzr/T5EKdDvEeSxXUSXkvukpEKSr2jpHwfC0Fy3pvF6cqn8F7vjM+i0=
+  file: dist/haxerb.zip
+  on:
+    tags: true
+    all_branches: true
+
