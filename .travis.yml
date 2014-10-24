@@ -11,3 +11,4 @@ script:
   - make -s
   - make tools -s
   - sudo make install -s
+
