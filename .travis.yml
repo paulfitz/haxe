@@ -8,7 +8,7 @@ script:
 - mkdir -p dist/haxerb/bin
 - make
 - make install
-- cd dist; zip -r haxerb haxerb
+- cd dist; zip -q -r haxerb haxerb; cd ..
 deploy:
   provider: releases
   api_key:
