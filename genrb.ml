@@ -688,6 +688,8 @@ let rec gen_call ctx e el r =
 		spr ctx "{|a,b| ";
 		call_expr_begin ctx e2;
 		spr ctx "(a,b)}";
+	| TLocal { v_name = "__rb__" }, [{ eexpr = TConst (TString code) }] ->
+		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
 	| TLocal { v_name = "__js__" }, [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
 	| TLocal { v_name = "__keys__" }, [e] ->
