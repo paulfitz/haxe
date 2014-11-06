@@ -1061,8 +1061,9 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 		concat ctx "," (gen_value ctx) el;
 		spr ctx "]"
 	| TThrow e ->
-		spr ctx "raise ";
+		spr ctx "raise hx_raise(";
 		gen_value ctx e;
+		spr ctx ")";
 	| TVar (v,eo) ->
 		(* spr ctx "var "; *)
 		concat ctx ", " (fun (v,eo) ->
@@ -1196,9 +1197,11 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 	      newline ctx;
 	      let tstr = type_str ctx v.v_type e.epos in
 	      if tstr <> "*" then
-		print ctx "rescue %s => %s" (type_str ctx v.v_type e.epos) (s_ident v.v_name)
+		print ctx "rescue hx_rescue(%s) => %s" (type_str ctx v.v_type e.epos) (s_ident v.v_name)
 	      else
 		print ctx "rescue => %s" (s_ident v.v_name);
+	      newline ctx;
+	      print ctx "  %s = hx_rescued(%s)" (s_ident v.v_name) (s_ident v.v_name);
 	      gen_expr ~preblocked:true ~postblocked:true ctx e;
 		      ) catchs;
 	    softest_newline ctx;
@@ -1679,6 +1682,8 @@ let generate_enum ctx e =
 		gen_expr ctx e;
 		newline ctx);
 	print ctx "CONSTRUCTS__ = [%s]" (String.concat "," (List.map (fun s -> "\"" ^ Ast.s_escape s ^ "\"") e.e_names));
+	newline ctx;
+	print ctx "def ==(a) a.tag === @tag && a.index === @index && a.params == @params end";
 	cl();
 	newline ctx;
 	print ctx "end";
