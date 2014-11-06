@@ -31,15 +31,20 @@ def _hx_ord(s) return 0 if s.nil?; s.ord end
 $hx_exception_classes = {}
 def hx_exception_class(c)
   $hx_exception_classes[c.name] ||= Class.new(RuntimeError) do
-    Object.const_set((c.name.split(/::/).old_access(-1)||'') + 'HaxeException',self)
-    def initialize(target) @target = target; end
-    def method_missing(name, *args, &block)
-      @target.send(name, *args, &block)
-    end
+    Object.const_set((c.name.split(/::/)[-1]||'') + 'HaxeException',self)
+    attr_accessor :hx_exception_target
+    def initialize(target) @hx_exception_target = target; end
   end
 end
-def hx_exception(x)
+def hx_raise(x)
   hx_exception_class(x.class).new(x)
+end
+def hx_rescue(x)
+  hx_exception_class(x.class)
+end
+def hx_rescued(x)
+  return x.hx_exception_target if x.respond_to? :hx_exception_target
+  x
 end
 ");
 	}
@@ -50,14 +55,12 @@ end
 
         @:keep
         private static function __trace(v,i) {
-	  untyped __call__("puts",v);
-	  /*
+	  //untyped __call__("puts",v);
 	  if (i!=null) {
 	    untyped __js__("puts \"#{v} #{i.inspect}\"");
 	  } else {
 	    untyped __js__("puts v");
 	  }
-	  */
 	}
 
 	private static function __clear_trace() {
