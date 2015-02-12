@@ -687,7 +687,6 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
-			pf_ignore_unsafe_cast = true;
 		}
 
 let memory_marker = [|Unix.time()|]
