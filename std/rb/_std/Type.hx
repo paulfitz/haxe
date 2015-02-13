@@ -52,7 +52,9 @@ enum ValueType {
 
 	public static function getClassName( c : Class<Dynamic> ) : String {
 	  if (c==null) return null;
-	  return untyped __dotcall__(c,"name");
+	  var name = untyped __dotcall__(c,"name");
+	  if (name=="Fixnum") name = "Int";
+	  return name;
 	}
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String {
