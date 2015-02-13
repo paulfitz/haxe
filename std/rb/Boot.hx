@@ -176,10 +176,8 @@ end
 	}
 
 	public static function __instanceof(o : Dynamic,cl : Dynamic) {
-	        return false;
-		if( cl == null )
-			return false;
-		switch( cl ) {
+	        if (cl == null) return false;
+		switch (cl) {
 		case Int:
 		  return (untyped __js__("o.is_a? Fixnum"));
 		case Float:
@@ -188,9 +186,8 @@ end
 		  return (untyped __js__("((o.is_a? TrueClass)||(o.is_a? FalseClass))"));
 		case String:
 		  return (untyped __js__("o.is_a? String"));
-		case Dynamic:
-		  return true;
 		default:
+		  if (cl == Dynamic) return false;
 		  if( o == null ) return false;
 		  return untyped __dotcall__(o,"is_a?",cl);
 		}
