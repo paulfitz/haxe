@@ -177,17 +177,19 @@ end
 
 	public static function __instanceof(o : Dynamic,cl : Dynamic) {
 	        if (cl == null) return false;
-		switch (cl) {
-		case Int:
-		  return (untyped __js__("o.is_a? Fixnum"));
-		case Float:
-		  return (untyped __js__("o.is_a? Float"));
-		case Bool:
-		  return (untyped __js__("((o.is_a? TrueClass)||(o.is_a? FalseClass))"));
-		case String:
-		  return (untyped __js__("o.is_a? String"));
-		default:
-		  if (cl == Dynamic) return false;
+		// avoid switch statement for now, translation is
+		// wrong when comparing types at the moment
+		if (cl == Int) {
+		  return (untyped __rb__("o.is_a? Fixnum"));
+		} else if (cl == Float) {
+		  return (untyped __dotcall__(o,"is_a?(Float)")||
+			  untyped __dotcall__(o,"is_a?(Fixnum)"));
+		} else if (cl == Bool) {
+		  return (untyped __rb__("((o.is_a? TrueClass)||(o.is_a? FalseClass))"));
+		} else if (cl == String) {
+		  return (untyped __rb__("o.is_a? String"));
+		} else {
+		  if (cl == Dynamic) return true;
 		  if( o == null ) return false;
 		  return untyped __dotcall__(o,"is_a?",cl);
 		}
