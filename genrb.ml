@@ -665,6 +665,11 @@ let rec gen_call ctx e el r =
 	    spr ctx ".";
 	    spr ctx code;
 	    show_args ctx el;
+	| TLocal { v_name = "__coloncoloncall__" }, eo :: { eexpr = TConst (TString code) } :: el ->
+	    gen_value_nest ctx eo;	
+	    spr ctx "::";
+	    spr ctx code;
+	    show_args ctx el;
 	| TLocal { v_name = "__rescue__" }, [e1;e2] ->
 	    spr ctx "(";
 	    gen_value ctx e1;	
@@ -1584,7 +1589,15 @@ let generate_class ctx c =
 	List.iter (generate_field ctx true) c.cl_ordered_statics;
 	cl();
 	newline ctx;
-	spr ctx "haxe_me";
+	spr ctx "haxe_me [";
+	List.iter (fun p ->
+	  spr ctx "\"";
+	  spr ctx p;
+	  spr ctx "\", ";
+		  ) (fst ctx.path);
+	spr ctx "\"";
+	spr ctx (snd c.cl_path);
+	spr ctx "\"]";
 	newline ctx;
 	spr ctx "end";
 	pack();
@@ -1598,7 +1611,9 @@ let generate_main ctx inits reqs com =
   spr ctx "  $stderr.puts \"Your current Ruby version is: #{RUBY_VERSION}. Haxe/Ruby generates code for version 1.9.3 or later.\"\n";
   spr ctx "  Kernel.exit 1\n";
   spr ctx "end\n";
-  spr ctx "def haxe_me\n";
+  spr ctx "def haxe_me(source_name)\n";
+  spr ctx "  $hx_types ||= {}\n";
+  spr ctx "  $hx_types[source_name.join('.')] = self\n";
   spr ctx "  _haxe_vars_ = {}\n";
   spr ctx "  instance_methods(false).grep(/=$/).each do |v|\n";
   spr ctx "    _haxe_vars_[v.to_s[0..-2].to_sym] = ('@'+v.to_s[0..-2]).to_sym\n";
@@ -1610,6 +1625,9 @@ let generate_main ctx inits reqs com =
   spr ctx "  end\n";
   spr ctx "  define_method(:[]=) do |x,y|\n";
   spr ctx "    instance_variable_set(_haxe_vars_[x],y)\n";
+  spr ctx "  end\n";
+  spr ctx "  define_method(:haxe_name) do\n";
+  spr ctx "    source_name.join('.')\n";
   spr ctx "  end\n";
   spr ctx "  class << self\n";
   spr ctx "    define_method(:[]) do |x|\n";
@@ -1683,7 +1701,7 @@ let generate_enum ctx e =
 		newline ctx);
 	print ctx "CONSTRUCTS__ = [%s]" (String.concat "," (List.map (fun s -> "\"" ^ Ast.s_escape s ^ "\"") e.e_names));
 	newline ctx;
-	print ctx "def ==(a) a.tag === @tag && a.index === @index && a.params == @params end";
+	print ctx "def ==(a) a.respond_to? 'ISENUM__' && a.tag === @tag && a.index === @index && a.params == @params end";
 	cl();
 	newline ctx;
 	print ctx "end";
