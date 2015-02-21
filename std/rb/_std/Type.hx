@@ -52,30 +52,48 @@ enum ValueType {
 
 	public static function getClassName( c : Class<Dynamic> ) : String {
 	  if (c==null) return null;
-	  var name = untyped __dotcall__(c,"name");
+	  var name : String = null;
+	  if (untyped __dotcall__(c,"respond_to?","haxe_name")) {
+	    name = untyped __dotcall__(c,"haxe_name");
+	  } else {
+	    name = untyped __dotcall__(c,"name");
+	  }
 	  if (name=="Fixnum") name = "Int";
+	  if (name=="Haxe::Ds::StringMap") name = "haxe.ds.StringMap";
 	  return name;
 	}
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String {
-	  var a : Array<String> = untyped e.__ename__;
-	  return a.join(".");
+	  if (e==null) return null;
+	  var name : String = null;
+	  if (untyped __dotcall__(e,"respond_to?","haxe_name")) {
+	    name = untyped __dotcall__(e,"haxe_name");
+	  } else {
+	    name = untyped __dotcall__(e,"name");
+	  }
+	  if (name=="TrueClass") name = "Bool";
+	  if (name=="FalseClass") name = "Bool";
+	  return name;
 	}
 
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
-		var cl : Class<Dynamic> = $hxClasses[name];
-		// ensure that this is a class
-		if( cl == null || !rb.Boot.isClass(cl) )
-			return null;
-		return cl;
+	  switch (name) {
+	  case "Int": return Int;
+	  case "Bool": return Bool;
+	  case "Float": return Float;
+	  case "String": return String;
+	  case "Array": return Array;
+	  default:
+	    var cl : Class<Dynamic> = $hx_types[name];
+	    return cl;
+	  }
+	  return null;
 	}
 
 	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped {
-		var e : Dynamic = $hxClasses[name];
-		// ensure that this is an enum
-		if( e == null || !rb.Boot.isEnum(e) )
-			return null;
-		return e;
+	  if (name=="Bool") return Bool;
+	  var e : Dynamic = $hx_types[name];
+	  return e;
 	}
 
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped {
@@ -141,6 +159,7 @@ enum ValueType {
 	}
 
 	public static function typeof( v : Dynamic ) : ValueType untyped {
+	  if (v==null) return TNull;
 	  switch( untyped __dotcall__(v,"class.to_s")) {
 	  case "TrueClass": return TBool;
 	  case "FalseClass": return TBool;
@@ -148,9 +167,11 @@ enum ValueType {
 	  case "Fixnum": return TInt;
 	  case "Float": return TFloat;
 	  case "Proc": return TFunction;
-	  case "NilClass": return TNull;
+	  case "Array": return TClass(Array);
 	  case "Hash": return TObject;
 	  default:
+	    if (untyped __dotcall__(v,"respond_to?","ISENUM__"))
+	      return TEnum(untyped __dotcall__(v,"class"));
 	    if (untyped __dotcall__(v,"respond_to?","class"))
 	      return TClass(untyped __dotcall__(v,"class"));
 	    return TUnknown;
@@ -158,21 +179,7 @@ enum ValueType {
 	}
 
 	public static function enumEq<T>( a : T, b : T ) : Bool untyped {
-		if( a == b )
-			return true;
-		try {
-			if( a[0] != b[0] )
-				return false;
-			for( i in 2...a.length )
-				if( !enumEq(a[i],b[i]) )
-					return false;
-			var e = a.__enum__;
-			if( e != b.__enum__ || e == null )
-				return false;
-		} catch( e : Dynamic ) {
-			return false;
-		}
-		return true;
+	  return (a == b);
 	}
 
 	public inline static function enumConstructor( e : EnumValue ) : String {
