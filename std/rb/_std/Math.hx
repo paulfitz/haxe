@@ -32,19 +32,19 @@ class Math
   public static var NaN(get_NaN,null) : Float;
 
   public static inline function get_NaN() : Float {
-    return untyped __dotcall__(Math,"NAN");
+    return untyped __coloncoloncall__(Float,"NAN");
   }
 
   public static var NEGATIVE_INFINITY(get_NEGATIVE_INFINITY,null) : Float;
 
   public static inline function get_NEGATIVE_INFINITY() : Float {
-    return - untyped __dotcall__(Math,"INFINITY");
+    return - untyped __coloncoloncall__(Float,"INFINITY");
   }
 
   public static var POSITIVE_INFINITY(get_POSITIVE_INFINITY,null) : Float;
 
   public static inline function get_POSITIVE_INFINITY() : Float {
-    return untyped __dotcall__(Math,"INFINITY");
+    return untyped __coloncoloncall__(Float,"INFINITY");
   }
 
   public static inline function abs(v:Float):Float {
