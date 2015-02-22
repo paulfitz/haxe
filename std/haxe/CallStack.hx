@@ -109,6 +109,8 @@ class CallStack {
 			for (elem in infos)
 				stack.push(FilePos(null, elem._1, elem._2));
 			return stack;
+                #elseif rb
+			return makeStack(untyped __rb__("caller"));
 		#else
 			return []; // Unsupported
 		#end
@@ -178,6 +180,8 @@ class CallStack {
 					stack.push(FilePos(null, elem._1, elem._2));
 			}
 			return stack;
+                #elseif rb
+			return makeStack(untyped __rb__("$@"));
 		#else
 			return []; // Unsupported
 		#end
@@ -319,6 +323,13 @@ class CallStack {
 					stack.push(method);
 			}
 			return stack;
+		#elseif rb
+			var stack : Array<String> = s;
+			var m = [];
+			for( line in stack ) {
+			  m.push(Module(line)); // weird, but better than nothing
+			}
+			return m;
 		#else
 			return null;
 		#end
