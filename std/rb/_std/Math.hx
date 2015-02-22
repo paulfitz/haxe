@@ -120,7 +120,9 @@ class Math
     return untyped __pow__(v,exp);
   }
 
-  //static function random() : Float;
+  public static inline function random() : Float {
+    return untyped __rb__("rand");
+  }
 
   public static inline function isFinite( f : Float ) : Bool {
     // should optimize this later for if we are sure we have a float
