@@ -42,7 +42,10 @@ enum ValueType {
 	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped {
 		if( o == null )
 			return null;
-		return o.__enum__;
+		if (!(untyped __dotcall__(o,"respond_to?", "ISENUM__"))) {
+		  return null;
+		}
+		return untyped __dotcall__(o,"class");
 	}
 
 	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> untyped {

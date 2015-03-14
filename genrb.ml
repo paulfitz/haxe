@@ -1615,15 +1615,19 @@ let generate_main ctx inits reqs com =
   spr ctx "  $hx_types ||= {}\n";
   spr ctx "  $hx_types[source_name.join('.')] = self\n";
   spr ctx "  _haxe_vars_ = {}\n";
-  spr ctx "  instance_methods(false).grep(/=$/).each do |v|\n";
+  spr ctx "  instance_methods(false).grep(/=$/).grep(/^[^\[=]/).each do |v|\n";
   spr ctx "    _haxe_vars_[v.to_s[0..-2].to_sym] = ('@'+v.to_s[0..-2]).to_sym\n";
   spr ctx "  end\n";
+  spr ctx "  old_get = instance_method(:[]) rescue nil\n";
   spr ctx "  define_method(:[]) do |x|\n";
+  spr ctx "    return old_get.bind(self).(x) if x.is_a?(Fixnum)\n";
   spr ctx "    tag = _haxe_vars_[x]\n";
   spr ctx "    return instance_variable_get(tag) if tag\n";
   spr ctx "    method x\n";
   spr ctx "  end\n";
+  spr ctx "  old_set = instance_method(:[]=) rescue nil\n";
   spr ctx "  define_method(:[]=) do |x,y|\n";
+  spr ctx "    return old_set.bind(self).(x,y) if x.is_a?(Fixnum)\n";
   spr ctx "    instance_variable_set(_haxe_vars_[x],y)\n";
   spr ctx "  end\n";
   spr ctx "  define_method(:haxe_name) do\n";
@@ -1634,6 +1638,9 @@ let generate_main ctx inits reqs com =
   spr ctx "      method x\n";
   spr ctx "    end\n";
   spr ctx "  end\n";
+  spr ctx "end\n";
+  spr ctx "class Array\n";
+  spr ctx "  haxe_me(['Array'])\n";
   spr ctx "end\n";
 
   let rec chk_features e =
@@ -1701,7 +1708,7 @@ let generate_enum ctx e =
 		newline ctx);
 	print ctx "CONSTRUCTS__ = [%s]" (String.concat "," (List.map (fun s -> "\"" ^ Ast.s_escape s ^ "\"") e.e_names));
 	newline ctx;
-	print ctx "def ==(a) a.respond_to? 'ISENUM__' && a.tag === @tag && a.index === @index && a.params == @params end";
+	print ctx "def ==(a) (!a.nil?) && (a.respond_to? 'ISENUM__') && a.tag === @tag && a.index === @index && a.params == @params end";
 	cl();
 	newline ctx;
 	print ctx "end";
