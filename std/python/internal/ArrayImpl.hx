@@ -67,8 +67,10 @@ class ArrayImpl {
 			else if (fromIndex < 0) len + fromIndex + 1
 			else fromIndex+1;
 		if (l > len) l = len;
-		while (--l > -1) {
+		l--;
+		while (l > -1) {
 			if (unsafeGet(a,l) == x) return l;
+			l--;
 		}
 		return -1;
 	}
