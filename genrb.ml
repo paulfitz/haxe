@@ -903,7 +903,7 @@ and gen_field_access ctx t s f e =
 	| _ ->
 	    print ctx ".%s" (s_ident s)
 
-and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ctx e =
+and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shortenable=true) ?(weakreturn=false) ctx e =
         let in_expression = ctx.in_expression in
 	ctx.in_expression <- false;
 	(match e.eexpr with
@@ -1019,7 +1019,7 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 		if ctx.in_value <> None then unsupported e.epos;
 		(match eo with
 		| None ->
-			spr ctx "return"
+			if not weakreturn then spr ctx "return"
 		| Some e when (match follow e.etype with TEnum({ e_path = [],"Void" },[]) | TAbstract ({ a_path = [],"Void" },[]) -> true | _ -> false) ->
 			print ctx "begin";
 			let bend = open_block ctx in
@@ -1031,7 +1031,7 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 			newline ctx;
 			print ctx "end";
 		| Some e ->
-			spr ctx "return ";
+			if not weakreturn then spr ctx "return ";
 			gen_value ctx e);
 	| TBreak ->
 		if ctx.in_value <> None then unsupported e.epos;
@@ -1043,7 +1043,8 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 	        if not preblocked then print ctx "begin";
 		let bend = open_block ctx in
 		(match ctx.block_inits with None -> () | Some i -> i());
-		List.iter (fun e -> block_newline ctx; gen_expr ~toplevel:true ctx e) el;
+		let last = (List.length el) - 1 in
+		List.iteri (fun i -> fun e -> block_newline ctx; gen_expr ~toplevel:true ~weakreturn:(weakreturn&&(i==last)) ctx e) el;
 		bend();
 		if not postblocked then begin
 		  softest_newline ctx;
@@ -1055,7 +1056,7 @@ and gen_expr ?(toplevel=false) ?(preblocked=false) ?(postblocked=false) ?(shorte
 		let old_bc = ctx.in_block_consumer in
 		ctx.in_static <- true;
 	        ctx.in_block_consumer <- false;
-		gen_expr ~preblocked:true ctx f.tf_expr;
+		gen_expr ~preblocked:true ~weakreturn:true ctx f.tf_expr;
 		ctx.in_block_consumer <- old_bc;
 		ctx.in_static <- old;
 		h();
@@ -1445,7 +1446,7 @@ let generate_field ctx static f =
 		let h = gen_function_header ctx (Some (s_ident f.cf_name, f.cf_meta)) fd f.cf_params p false in
 		let old_bc = ctx.in_block_consumer in
 	        ctx.in_block_consumer <- false;
-		gen_expr ~preblocked:true ctx fd.tf_expr;
+		gen_expr ~preblocked:true ~weakreturn:true ctx fd.tf_expr;
 		ctx.in_block_consumer <- old_bc;
 		h();
 		soft_newline ctx;
@@ -1615,7 +1616,7 @@ let generate_main ctx inits reqs com =
   spr ctx "  $hx_types ||= {}\n";
   spr ctx "  $hx_types[source_name.join('.')] = self\n";
   spr ctx "  _haxe_vars_ = {}\n";
-  spr ctx "  instance_methods(false).grep(/=$/).grep(/^[^\[=]/).each do |v|\n";
+  spr ctx "  instance_methods(false).grep(/=$/).grep(/^[^\\[=]/).each do |v|\n";
   spr ctx "    _haxe_vars_[v.to_s[0..-2].to_sym] = ('@'+v.to_s[0..-2]).to_sym\n";
   spr ctx "  end\n";
   spr ctx "  old_get = instance_method(:[]) rescue nil\n";
