@@ -38,7 +38,7 @@ extern class Array<T> {
   }
 
   inline function sort( f : T -> T -> Int ) : Void {
-    untyped __pass_block__(this,untyped __js__("sort"),f);
+    untyped __pass_block__(this,untyped __js__("sort!"),f);
   }
   inline function splice( pos : Int, len : Int ) : Array<T> {
     return untyped __dotcall__(this,"slice!",pos,len);
