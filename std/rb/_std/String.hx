@@ -23,8 +23,15 @@
 	var length(default,null) : Int;
 
 	function new(string:String) : Void;
-	function toUpperCase() : String;
-	function toLowerCase() : String;
+
+  inline function toUpperCase() : String {
+    return untyped __dotcall__(this,"upcase");
+  }
+
+  inline function toLowerCase() : String {
+    return untyped __dotcall__(this,"downcase");
+  }
+
   inline function charAt( index : Int) : String {
     return untyped __get__(this,index);
   }

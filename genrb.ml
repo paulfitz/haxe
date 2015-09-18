@@ -120,6 +120,7 @@ let reserved =
 	 "begin";"rescue";"end";
 
 	 "Sys";"File";
+         "next";
 	];
 	h
 
@@ -1465,7 +1466,7 @@ let generate_field ctx static f =
 				print ctx "def %s(" (loop f.cf_meta);
 				concat ctx "," (fun (arg,o,t) ->
 					let tstr = type_str ctx t p in
-					print ctx "%s" arg;
+					print ctx "%s" (s_ident arg);
 					if o then print ctx " = %s" (default_value tstr);
 				) args;
 				print ctx ") puts \"Abstract %s.%s called\" end" (tweak_class_name (snd ctx.curclass.cl_path)) (loop f.cf_meta);
