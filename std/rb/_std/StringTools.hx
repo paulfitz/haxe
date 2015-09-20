@@ -54,15 +54,15 @@
 	}
 
 	public inline static function ltrim( s : String ) : String {
-		return untyped __call__("ltrim", s);
+		return untyped __dotcall__(s, "lstrip");
 	}
 
 	public inline static function rtrim( s : String ) : String {
-		return untyped __call__("rtrim", s);
+		return untyped __dotcall__(s, "rstrip");
 	}
 
 	public inline static function trim( s : String ) : String {
-		return untyped __call__("trim", s);
+		return untyped __dotcall__(s, "strip");
 	}
 
 	public inline static function rpad( s : String, c : String, l : Int ) : String {
