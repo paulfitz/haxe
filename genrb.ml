@@ -1641,9 +1641,6 @@ let generate_main ctx inits reqs com =
   spr ctx "    end\n";
   spr ctx "  end\n";
   spr ctx "end\n";
-  spr ctx "class Array\n";
-  spr ctx "  haxe_me(['Array'])\n";
-  spr ctx "end\n";
 
   let rec chk_features e =
     if is_dynamic_iterator ctx e then add_feature ctx "use.$iterator";
