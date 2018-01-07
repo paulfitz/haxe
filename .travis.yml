@@ -10,10 +10,10 @@ script:
 - make
 - make install
 - cd dist; zip -q -r haxerb haxerb; cd ..
-deploy:
+deployx:
   provider: releases
   api_key:
-    secure: i109Iq34IA9QYF+Zf5WnieLzGdbbHlwl0QnHUXb4PKmB4vgTxwMRXSanPjM2I0/r5vuQiiuYuNTR6kfM6nbW6iyMjjoz/WB2W8/7LGCQCP8Fza46H18K2S3bEnvIPVQcfenjymPhoZ3JoTu9WubSj/LbDWZwPwqzP5Vb6HVwO9A=
+    secure: htDv2iTsZyB3pGpAyYIZw9GLR+nu4TDlt2tLontBu8b3m9WTin406QWnbhju0fuoTfVZXiqQoVjyX+0E8wQu85KzbiMbdyD9NHXNYRsaq/HjV0VTdIrJcpiLMyZvXClIncClOx3w37+dIl3PvzvM9sL7kk7wcNpBTTwQuFEuwAE=
   file: dist/haxerb.zip
   on:
     tags: true
