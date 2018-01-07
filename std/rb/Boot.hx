@@ -180,10 +180,10 @@ end
 		// avoid switch statement for now, translation is
 		// wrong when comparing types at the moment
 		if (cl == Int) {
-		  return (untyped __rb__("o.is_a? Fixnum"));
+		  return (untyped __rb__("o.is_a? 0.class"));
 		} else if (cl == Float) {
 		  return (untyped __dotcall__(o,"is_a?(Float)")||
-			  untyped __dotcall__(o,"is_a?(Fixnum)"));
+			  untyped __dotcall__(o,"is_a?(0.class)"));
 		} else if (cl == Bool) {
 		  return (untyped __rb__("((o.is_a? TrueClass)||(o.is_a? FalseClass))"));
 		} else if (cl == String) {

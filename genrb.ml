@@ -147,7 +147,7 @@ let s_path ctx stat path p =
 	match path with
 	| ([],name) ->
 		(match name with
-		| "Int" -> "Fixnum"
+		| "Int" -> "Integer"
 		| "Float" -> "Float"
 		| "Dynamic" -> "Object"
 		| "Bool" -> "TrueClass"
@@ -1622,14 +1622,14 @@ let generate_main ctx inits reqs com =
   spr ctx "  end\n";
   spr ctx "  old_get = instance_method(:[]) rescue nil\n";
   spr ctx "  define_method(:[]) do |x|\n";
-  spr ctx "    return old_get.bind(self).(x) if x.is_a?(Fixnum)\n";
+  spr ctx "    return old_get.bind(self).(x) if x.is_a?(0.class)\n";
   spr ctx "    tag = _haxe_vars_[x]\n";
   spr ctx "    return instance_variable_get(tag) if tag\n";
   spr ctx "    method x\n";
   spr ctx "  end\n";
   spr ctx "  old_set = instance_method(:[]=) rescue nil\n";
   spr ctx "  define_method(:[]=) do |x,y|\n";
-  spr ctx "    return old_set.bind(self).(x,y) if x.is_a?(Fixnum)\n";
+  spr ctx "    return old_set.bind(self).(x,y) if x.is_a?(0.class)\n";
   spr ctx "    instance_variable_set(_haxe_vars_[x],y)\n";
   spr ctx "  end\n";
   spr ctx "  define_method(:haxe_name) do\n";

@@ -61,7 +61,7 @@ enum ValueType {
 	  } else {
 	    name = untyped __dotcall__(c,"name");
 	  }
-	  if (name=="Fixnum") name = "Int";
+	  if (name=="Integer" || name=="Fixnum") name = "Int";
 	  if (name=="Haxe::Ds::StringMap") name = "haxe.ds.StringMap";
 	  return name;
 	}
@@ -167,6 +167,7 @@ enum ValueType {
 	  case "TrueClass": return TBool;
 	  case "FalseClass": return TBool;
 	  case "String": return TClass(String);
+	  case "Integer": return TInt;
 	  case "Fixnum": return TInt;
 	  case "Float": return TFloat;
 	  case "Proc": return TFunction;
